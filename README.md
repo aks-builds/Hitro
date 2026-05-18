@@ -207,4 +207,4 @@ We welcome contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before 
 
 ## License
 
-[MIT](LICENSE) © 2024 Duck Creek
+[MIT](LICENSE) © 2026 aks-builds
