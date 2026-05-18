@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Tab } from '../store/appStore'
 import { Snapshot, PikoResponse, SnapshotFieldDiff } from '@shared/types'
+import ConfirmModal from './ConfirmModal'
 
 function statusColor(code?: number) {
   if (!code) return 'text-pk-muted'
@@ -26,12 +27,24 @@ function diffResponses(saved: PikoResponse, current: PikoResponse): SnapshotFiel
   if (saved.status !== current.status) {
     diffs.push({ field: 'status', saved: String(saved.status ?? ''), current: String(current.status ?? ''), changed: true })
   }
+  // Iterative BFS flattening — avoids stack overflow on large/deep bodies
   const flattenObj = (obj: any, prefix = ''): Record<string, string> => {
-    if (obj == null || typeof obj !== 'object') return { [prefix]: String(obj ?? '') }
-    return Object.entries(obj).reduce<Record<string, string>>((acc, [k, v]) => {
-      const key = prefix ? `${prefix}.${k}` : k
-      return typeof v === 'object' && v !== null ? { ...acc, ...flattenObj(v, key) } : { ...acc, [key]: String(v ?? '') }
-    }, {})
+    const result: Record<string, string> = {}
+    const queue: Array<[any, string]> = [[obj, prefix]]
+    let safety = 0
+    while (queue.length && safety++ < 5000) {
+      const [node, pre] = queue.shift()!
+      if (node == null || typeof node !== 'object') {
+        result[pre] = String(node ?? '')
+        continue
+      }
+      for (const [k, v] of Object.entries(node)) {
+        const key = pre ? `${pre}.${k}` : k
+        if (v !== null && typeof v === 'object') queue.push([v, key])
+        else result[key] = String(v ?? '')
+      }
+    }
+    return result
   }
   const savedFlat = flattenObj(saved.body ?? {}, 'body')
   const currentFlat = flattenObj(current.body ?? {}, 'body')
@@ -50,6 +63,7 @@ function SnapshotPanel({ tab }: { tab: Tab }) {
   const [saving, setSaving] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [diffs, setDiffs] = useState<SnapshotFieldDiff[] | null>(null)
+  const [confirmDeleteSnap, setConfirmDeleteSnap] = useState<Snapshot | null>(null)
   const reqId = tab.request.id
 
   useEffect(() => {
@@ -72,10 +86,16 @@ function SnapshotPanel({ tab }: { tab: Tab }) {
     setDiffs(diffResponses(snap.response, tab.response))
   }
 
-  const handleDelete = async (id: string) => {
-    await window.api.snapshotDelete(id)
-    setSnapshots(s => s.filter(x => x.id !== id))
-    if (selectedId === id) { setSelectedId(null); setDiffs(null) }
+  const handleDelete = (snap: Snapshot) => {
+    setConfirmDeleteSnap(snap)
+  }
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteSnap) return
+    await window.api.snapshotDelete(confirmDeleteSnap.id)
+    setSnapshots(s => s.filter(x => x.id !== confirmDeleteSnap.id))
+    if (selectedId === confirmDeleteSnap.id) { setSelectedId(null); setDiffs(null) }
+    setConfirmDeleteSnap(null)
   }
 
   return (
@@ -92,7 +112,7 @@ function SnapshotPanel({ tab }: { tab: Tab }) {
         </div>
       )}
       {!tab.response && (
-        <p className="text-pk-muted text-xs text-center py-2">Send a request to save its response as a snapshot.</p>
+        <p className="text-xs text-center py-2" style={{ color: 'var(--pk-muted)' }}>Send a request to save its response as a snapshot.</p>
       )}
 
       {snapshots.length === 0 ? (
@@ -108,8 +128,14 @@ function SnapshotPanel({ tab }: { tab: Tab }) {
             <div className="flex gap-1.5">
               <button onClick={() => handleCompare(snap)} disabled={!tab.response}
                 className="btn-ghost text-xs py-1 px-2">Compare</button>
-              <button onClick={() => handleDelete(snap.id)}
-                className="text-pk-faint hover:text-red-400 text-xs transition-colors px-1">✕</button>
+              <button
+                onClick={() => handleDelete(snap)}
+                title="Delete snapshot"
+                className="text-xs px-2 py-1 rounded-lg transition-colors"
+                style={{ color: 'var(--pk-faint)' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#F85149', e.currentTarget.style.background = 'rgba(248,81,73,0.1)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--pk-faint)', e.currentTarget.style.background = '')}
+              >Delete</button>
             </div>
           </div>
           {selectedId === snap.id && diffs !== null && (
@@ -132,6 +158,16 @@ function SnapshotPanel({ tab }: { tab: Tab }) {
           )}
         </div>
       ))}
+
+      {confirmDeleteSnap && (
+        <ConfirmModal
+          title="Delete snapshot"
+          message={`"${confirmDeleteSnap.name}" will be permanently deleted and cannot be recovered.`}
+          confirmLabel="Delete snapshot"
+          onConfirm={confirmDelete}
+          onCancel={() => setConfirmDeleteSnap(null)}
+        />
+      )}
     </div>
   )
 }
@@ -164,28 +200,28 @@ export default function ResponsePanel({ tab }: { tab: Tab }) {
   ]
 
   return (
-    <div className="flex flex-col h-full bg-pk-surface">
+    <div className="flex flex-col h-full" style={{ background: 'var(--pk-surface)' }}>
 
       {/* ── Header: tabs + status ─────────────────────────── */}
-      <div className="flex items-center border-b border-pk-border flex-shrink-0" style={{ minHeight: 36 }}>
-        {/* Tab strip — scrollable, takes all available space */}
+      <div className="flex items-center flex-shrink-0" style={{ minHeight: 36, borderBottom: '1px solid var(--pk-border)' }}>
         <div className="flex min-w-0 flex-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           {tabDefs.map(t => (
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key)}
-              className={`px-3.5 py-2 text-xs whitespace-nowrap flex-shrink-0 transition-colors ${activeTab === t.key ? 'tab-active' : 'tab-inactive'}`}
+              className={`px-3.5 py-2 text-[11px] whitespace-nowrap flex-shrink-0 transition-colors ${activeTab === t.key ? 'tab-active' : 'tab-inactive'}`}
             >
               {t.label}
             </button>
           ))}
         </div>
 
-        {/* Status / loading badges — always visible on the right */}
-        <div className="flex items-center gap-1.5 px-3 flex-shrink-0 border-l border-pk-border/50">
+        {/* Status / loading badges */}
+        <div className="flex items-center gap-1.5 px-3 flex-shrink-0" style={{ borderLeft: '1px solid var(--pk-border)' }}>
           {isLoading && (
-            <div className="flex items-center gap-1.5 text-pk-muted text-xs">
-              <span className="w-3 h-3 rounded-full border-2 border-pk-accent/40 border-t-pk-accent animate-spin-fast" />
+            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--pk-muted)' }}>
+              <span className="w-3 h-3 rounded-full border-2 animate-spin-fast"
+                style={{ borderColor: 'rgba(99,102,241,0.3)', borderTopColor: 'var(--pk-accent)' }} />
               <span>Sending…</span>
             </div>
           )}
@@ -193,19 +229,22 @@ export default function ResponsePanel({ tab }: { tab: Tab }) {
             <>
               <span
                 data-testid="response-status"
-                className="text-xs font-bold px-2 py-0.5 rounded-full"
+                className="text-[11px] font-bold px-2.5 py-0.5 rounded-full tabular-nums"
                 style={{
-                  color: response.status && response.status < 300 ? '#059669' : response.status && response.status < 400 ? '#D97706' : '#DC2626',
+                  color: response.status && response.status < 300 ? '#3FB950' : response.status && response.status < 400 ? '#D29922' : '#F85149',
                   background: statusBg(response.status),
+                  boxShadow: response.status && response.status < 300 ? '0 0 8px rgba(63,185,80,0.12)' : undefined,
                 }}
               >
                 {response.status} {response.statusText}
               </span>
-              <span className="text-xs text-pk-muted bg-pk-panel px-2 py-0.5 rounded-full tabular-nums">
+              <span className="text-[11px] tabular-nums px-2 py-0.5 rounded-full font-mono"
+                style={{ background: 'var(--pk-panel)', color: 'var(--pk-muted)' }}>
                 {response.duration}ms
               </span>
               {response.size !== undefined && response.size > 0 && (
-                <span className="text-xs text-pk-muted bg-pk-panel px-2 py-0.5 rounded-full">
+                <span className="text-[11px] px-2 py-0.5 rounded-full"
+                  style={{ background: 'var(--pk-panel)', color: 'var(--pk-muted)' }}>
                   {formatSize(response.size)}
                 </span>
               )}
@@ -219,14 +258,14 @@ export default function ResponsePanel({ tab }: { tab: Tab }) {
 
         {/* Empty state */}
         {!response && !isLoading && activeTab !== 'snapshot' && (
-          <div className="flex flex-col items-center justify-center h-full gap-3 select-none">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8h10M9 4l4 4-4 4" stroke="#6366F1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <div className="flex flex-col items-center justify-center h-full gap-3 select-none animate-fade-in">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.12)' }}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M3 9h12M11 5l4 4-4 4" stroke="#6366F1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <span className="text-pk-muted text-xs opacity-60">Hit Send to see the response</span>
+            <span className="text-[11px]" style={{ color: 'var(--pk-faint)' }}>Hit Send to see the response</span>
           </div>
         )}
 
@@ -234,10 +273,11 @@ export default function ResponsePanel({ tab }: { tab: Tab }) {
         {response?.error && activeTab !== 'snapshot' && (
           <div
             data-testid="response-error"
-            className="text-red-400 p-4 bg-red-900/10 rounded-xl border border-red-900/30 animate-fade-in"
+            className="p-4 rounded-xl animate-fade-in"
+            style={{ background: 'rgba(248,81,73,0.07)', border: '1px solid rgba(248,81,73,0.2)' }}
           >
-            <div className="font-bold mb-1 text-sm font-sans">Request Failed</div>
-            <div className="text-red-300/80 font-mono">{response.error}</div>
+            <div className="font-bold mb-1.5 text-xs font-sans" style={{ color: '#F85149' }}>Request Failed</div>
+            <div className="font-mono text-[11px]" style={{ color: 'rgba(248,81,73,0.75)' }}>{response.error}</div>
           </div>
         )}
 
@@ -247,7 +287,14 @@ export default function ResponsePanel({ tab }: { tab: Tab }) {
           <div className="animate-fade-in">
 
             {activeTab === 'body' && (
-              <pre className="whitespace-pre-wrap break-words text-pk-text leading-relaxed bg-pk-panel rounded-xl p-3 border border-pk-border text-[12px]">
+              <pre
+                className="whitespace-pre-wrap break-words leading-relaxed rounded-xl p-3 text-[11px]"
+                style={{
+                  background: 'var(--pk-panel)',
+                  border: '1px solid var(--pk-border)',
+                  color: 'var(--pk-text)',
+                }}
+              >
                 {response.rawBody ?? JSON.stringify(response.body, null, 2)}
               </pre>
             )}
@@ -255,16 +302,18 @@ export default function ResponsePanel({ tab }: { tab: Tab }) {
             {activeTab === 'headers' && (
               <table className="w-full text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-pk-border">
-                    <th className="text-left py-1.5 pr-6 font-semibold text-pk-muted uppercase text-[10px] tracking-wider">Header</th>
-                    <th className="text-left py-1.5 font-semibold text-pk-muted uppercase text-[10px] tracking-wider">Value</th>
+                  <tr style={{ borderBottom: '1px solid var(--pk-border)' }}>
+                    <th className="text-left py-1.5 pr-6 font-semibold uppercase text-[10px] tracking-wider" style={{ color: 'var(--pk-faint)' }}>Header</th>
+                    <th className="text-left py-1.5 font-semibold uppercase text-[10px] tracking-wider" style={{ color: 'var(--pk-faint)' }}>Value</th>
                   </tr>
                 </thead>
                 <tbody>
                   {Object.entries(response.headers ?? {}).map(([k, v]) => (
-                    <tr key={k} className="border-b border-pk-border/40 hover:bg-pk-hover/30 transition-colors">
-                      <td className="py-1.5 pr-6 text-pk-accent whitespace-nowrap">{k}</td>
-                      <td className="py-1.5 text-pk-text break-all">{v}</td>
+                    <tr key={k} className="transition-colors" style={{ borderBottom: '1px solid var(--pk-border)' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--pk-elevated)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                      <td className="py-1.5 pr-6 whitespace-nowrap" style={{ color: 'var(--pk-accent)' }}>{k}</td>
+                      <td className="py-1.5 break-all" style={{ color: 'var(--pk-text)' }}>{v}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -274,24 +323,27 @@ export default function ResponsePanel({ tab }: { tab: Tab }) {
             {activeTab === 'assertions' && (
               <div className="flex flex-col gap-2">
                 {(response.assertionResults ?? []).length === 0 && (
-                  <div className="text-pk-muted text-center py-6">No assertions configured.</div>
+                  <div className="text-center py-6" style={{ color: 'var(--pk-muted)' }}>No assertions configured.</div>
                 )}
                 {(response.assertionResults ?? []).map((r, i) => (
                   <div
                     key={r.assertion.id ?? i}
                     data-testid={r.passed ? 'assertion-result-pass' : 'assertion-result-fail'}
-                    className={`flex items-start gap-3 p-3 rounded-xl border
-                      ${r.passed ? 'bg-green-900/10 border-green-900/30' : 'bg-red-900/10 border-red-900/30'}`}
+                    className="flex items-start gap-3 p-3 rounded-xl"
+                    style={{
+                      background: r.passed ? 'rgba(63,185,80,0.07)' : 'rgba(248,81,73,0.07)',
+                      border: `1px solid ${r.passed ? 'rgba(63,185,80,0.2)' : 'rgba(248,81,73,0.2)'}`,
+                    }}
                   >
-                    <span className={`text-base flex-shrink-0 ${r.passed ? 'text-green-400' : 'text-red-400'}`}>
+                    <span className="text-sm flex-shrink-0" style={{ color: r.passed ? '#3FB950' : '#F85149' }}>
                       {r.passed ? '✓' : '✗'}
                     </span>
                     <div>
-                      <span className="text-pk-muted">{r.assertion.field}</span>
-                      <span className="mx-1.5 text-pk-faint">{r.assertion.operator}</span>
-                      <span className="text-pk-text">"{r.assertion.expected}"</span>
+                      <span style={{ color: 'var(--pk-muted)' }}>{r.assertion.field}</span>
+                      <span className="mx-1.5" style={{ color: 'var(--pk-faint)' }}>{r.assertion.operator}</span>
+                      <span style={{ color: 'var(--pk-text)' }}>"{r.assertion.expected}"</span>
                       {!r.passed && r.actual !== undefined && (
-                        <div className="text-red-400 text-xs mt-0.5 font-mono">got: {JSON.stringify(r.actual)}</div>
+                        <div className="text-xs mt-0.5 font-mono" style={{ color: '#F85149' }}>got: {JSON.stringify(r.actual)}</div>
                       )}
                     </div>
                   </div>
@@ -301,21 +353,28 @@ export default function ResponsePanel({ tab }: { tab: Tab }) {
 
             {activeTab === 'stream' && (
               <div className="flex flex-col gap-1.5">
-                {streamEvents.length === 0 && <div className="text-pk-muted text-center py-6">No events yet.</div>}
+                {streamEvents.length === 0 && (
+                  <div className="text-center py-6" style={{ color: 'var(--pk-muted)' }}>No events yet.</div>
+                )}
                 {streamEvents.map(e => (
-                  <div key={e.id} className={`flex gap-3 p-2 rounded-lg text-xs
-                    ${e.type === 'sent'     ? 'bg-pk-accent/8 border border-pk-accent/20' :
-                      e.type === 'received' ? 'bg-green-900/10 border border-green-900/20' :
-                      e.type === 'error'    ? 'bg-red-900/10 border border-red-900/20' :
-                                              'bg-pk-panel border border-pk-border'}`}>
-                    <span className="text-pk-muted flex-shrink-0">{new Date(e.timestamp).toLocaleTimeString()}</span>
-                    <span className={`font-bold flex-shrink-0 w-14
-                      ${e.type === 'sent'     ? 'text-pk-accent' :
-                        e.type === 'received' ? 'text-green-400' :
-                        e.type === 'error'    ? 'text-red-400' : 'text-pk-muted'}`}>
+                  <div key={e.id} className="flex gap-3 p-2 rounded-lg text-[11px]"
+                    style={{
+                      background: e.type === 'sent'     ? 'rgba(99,102,241,0.06)'  :
+                                  e.type === 'received' ? 'rgba(63,185,80,0.06)'   :
+                                  e.type === 'error'    ? 'rgba(248,81,73,0.06)'   : 'var(--pk-panel)',
+                      border: `1px solid ${
+                                  e.type === 'sent'     ? 'rgba(99,102,241,0.18)'  :
+                                  e.type === 'received' ? 'rgba(63,185,80,0.18)'   :
+                                  e.type === 'error'    ? 'rgba(248,81,73,0.18)'   : 'var(--pk-border)'}`,
+                    }}>
+                    <span className="flex-shrink-0" style={{ color: 'var(--pk-faint)' }}>{new Date(e.timestamp).toLocaleTimeString()}</span>
+                    <span className="font-bold flex-shrink-0 w-14"
+                      style={{ color: e.type === 'sent'     ? 'var(--pk-accent)' :
+                                      e.type === 'received' ? '#3FB950' :
+                                      e.type === 'error'    ? '#F85149' : 'var(--pk-muted)' }}>
                       {e.type.toUpperCase()}
                     </span>
-                    <pre className="whitespace-pre-wrap break-words text-pk-text">
+                    <pre className="whitespace-pre-wrap break-words" style={{ color: 'var(--pk-text)' }}>
                       {typeof e.data === 'object' ? JSON.stringify(e.data, null, 2) : String(e.data)}
                     </pre>
                   </div>
@@ -328,16 +387,20 @@ export default function ResponsePanel({ tab }: { tab: Tab }) {
         {activeTab === 'console' && (
           <div className="flex flex-col gap-1 animate-fade-in">
             {(response?.scriptLogs ?? []).length === 0 ? (
-              <div className="text-pk-muted text-center py-6">
-                No console output. Use <code className="text-pk-accent">console.log()</code> in your scripts.
+              <div className="text-center py-6" style={{ color: 'var(--pk-muted)' }}>
+                No console output. Use <code style={{ color: 'var(--pk-accent)' }}>console.log()</code> in your scripts.
               </div>
             ) : (response?.scriptLogs ?? []).map((log, i) => (
-              <div key={`${log.timestamp}-${i}`} className={`flex gap-3 p-2 rounded-lg
-                ${log.level === 'error' ? 'bg-red-900/10 text-red-400' :
-                  log.level === 'warn'  ? 'bg-yellow-900/10 text-yellow-400' : 'text-pk-text'}`}>
-                <span className="text-pk-muted flex-shrink-0">{new Date(log.timestamp).toLocaleTimeString()}</span>
-                <span className={`w-8 flex-shrink-0 font-bold text-[10px] uppercase
-                  ${log.level === 'error' ? 'text-red-400' : log.level === 'warn' ? 'text-yellow-400' : 'text-pk-accent'}`}>
+              <div key={`${log.timestamp}-${i}`} className="flex gap-3 p-2 rounded-lg"
+                style={{
+                  background: log.level === 'error' ? 'rgba(248,81,73,0.07)' :
+                               log.level === 'warn'  ? 'rgba(210,153,34,0.07)' : 'transparent',
+                  color:      log.level === 'error' ? '#F85149' :
+                               log.level === 'warn'  ? '#D29922'  : 'var(--pk-text)',
+                }}>
+                <span className="flex-shrink-0" style={{ color: 'var(--pk-faint)' }}>{new Date(log.timestamp).toLocaleTimeString()}</span>
+                <span className="w-8 flex-shrink-0 font-bold text-[10px] uppercase"
+                  style={{ color: log.level === 'error' ? '#F85149' : log.level === 'warn' ? '#D29922' : 'var(--pk-accent)' }}>
                   {log.level}
                 </span>
                 <pre className="whitespace-pre-wrap break-words">{log.message}</pre>

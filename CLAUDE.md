@@ -20,6 +20,8 @@ Hitro is a desktop API client (Electron + React + TypeScript) that supports nine
 | `src/renderer/components/protocols/*.tsx` | Per-protocol config UI |
 | `src/renderer/components/MockServerPanel.tsx` | Mock server management UI |
 | `src/renderer/components/LoadTestPanel.tsx` | Load test configuration and results UI |
+| `src/renderer/components/ConfirmModal.tsx` | Reusable danger/confirm dialog (Escape-to-cancel) |
+| `src/renderer/components/HistoryPanel.tsx` | Request history browser (collapsible sidebar section) |
 
 ## Architecture in one paragraph
 
@@ -54,13 +56,26 @@ The renderer (Chromium, sandboxed) communicates with the main process (Node.js) 
 3. Add the option to the `<select>` in `src/renderer/components/AssertionEditor.tsx`
 
 **Add a new protocol:**
-See CONTRIBUTING.md → "Adding a protocol adapter" for the full checklist.
+See CONTRIBUTING.md → "Adding a protocol adapter" for the full checklist (see `docs/ARCHITECTURE.md` for the IPC contract).
 
 **Change the database schema:**
-Edit `src/main/database.ts`. Add a migration guard with a version check if existing data must be preserved — do not just alter the schema in place.
+Edit `src/main/database.ts`. The `schema_version` table tracks applied migrations — add a new versioned entry; do not just alter the schema in place (see `docs/MIGRATION.md`).
 
 ## What to avoid
 
 - Do not import Node built-ins in renderer files (`fs`, `path`, `os`, etc.) — the renderer is sandboxed
 - Do not add shared mutable state between protocol adapters
 - Do not store secrets (AWS keys, tokens) in the renderer store — they live only in config objects passed through IPC and stored in SQLite
+
+## Mandatory rules (enforced on every task)
+
+**MD file freshness check** — Before marking any task complete, verify:
+
+1. If code adds or removes a user-facing feature: update `CHANGELOG.md` (Unreleased section) and `README.md` feature matrix if applicable.
+2. If IPC channels are added, removed, or renamed: update the IPC contract table in `docs/ARCHITECTURE.md`.
+3. If the database schema changes: update `docs/ARCHITECTURE.md` schema section and `docs/MIGRATION.md`.
+4. If a new file is added to `src/main/adapters/` or `src/renderer/components/protocols/`: update the Key files table above and `README.md` protocol list.
+5. Run `grep -r "NEXUS" docs/ CLAUDE.md AGENTS.md .cursorrules` — any hit is a stale legacy reference and must be corrected before completing the task.
+6. Run `grep -r "coming soon" src/` — remove or implement any placeholder stubs found.
+
+Failure to complete this check is a Definition-of-Done violation per `docs/DoD.md`.

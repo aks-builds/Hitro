@@ -44,6 +44,17 @@ Hitro is an Electron desktop app (Node.js main process + React renderer) for tes
 
 ## Resources
 
-- `ARCHITECTURE.md` — IPC contract and process model
+- `docs/ARCHITECTURE.md` — IPC contract and process model
 - `CONTRIBUTING.md` — PR process and adapter checklist
-- `GUARDRAILS.md` — security constraints
+- `docs/GUARDRAILS.md` — security constraints
+
+## Mandatory rules (enforced on every task)
+
+Before marking any task complete:
+
+1. Feature added/removed → update `CHANGELOG.md` Unreleased section.
+2. IPC channel changed → update `docs/ARCHITECTURE.md` IPC table.
+3. DB schema changed → update `docs/ARCHITECTURE.md` + `docs/MIGRATION.md`.
+4. New adapter or protocol panel → update `CLAUDE.md` key files table.
+5. Run `grep -r "NEXUS" docs/ CLAUDE.md` — any hit is a stale reference, fix it.
+6. Run `grep -r "coming soon" src/` — remove or implement all stubs before shipping.

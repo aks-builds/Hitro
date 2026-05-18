@@ -4,7 +4,7 @@
 
 Hitro is an open-source desktop API client for testing REST, gRPC, GraphQL, WebSocket, Kafka, SQS, MQTT, SSE, and Socket.IO from a single unified interface. Built with Electron + React + TypeScript.
 
-[![Build](https://github.com/duckcreek/hitro/actions/workflows/build.yml/badge.svg)](https://github.com/duckcreek/hitro/actions/workflows/build.yml)
+[![Build](https://github.com/aks-builds/hitro/actions/workflows/build.yml/badge.svg)](https://github.com/aks-builds/hitro/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue)](https://www.typescriptlang.org/)
 [![Electron](https://img.shields.io/badge/Electron-31-47848F)](https://www.electronjs.org/)
@@ -48,7 +48,7 @@ All auth types available for REST:
 | **Collection Runner** | Run all requests in a collection sequentially, see pass/fail per request |
 | **Environments** | Named variable sets; reference with `{{varName}}` |
 | **Global Variables** | Cross-environment variables always available |
-| **Assertions** | 8 operators against status, headers, and JSON body paths |
+| **Assertions** | 16 operators against status, headers, and JSON body paths (eq, ne, contains, gt, gte, lt, lte, startsWith, endsWith, type, length, isEmpty, isNull, and more) |
 | **Pre/Post Scripts** | JavaScript sandboxed execution with `pm` API (Postman-compatible) |
 | **History** | Last 100 requests persisted locally in SQLite |
 | **Code Generation** | Export as cURL, JS fetch, Python requests, Node.js axios, PHP |
@@ -64,7 +64,7 @@ All auth types available for REST:
 
 ### Download a release (recommended)
 
-Go to [Releases](https://github.com/duckcreek/hitro/releases) and download the installer for your platform:
+Go to [Releases](https://github.com/aks-builds/hitro/releases) and download the installer for your platform:
 
 | Platform | File |
 |----------|------|
@@ -75,7 +75,7 @@ Go to [Releases](https://github.com/duckcreek/hitro/releases) and download the i
 ### Build from source
 
 ```bash
-git clone https://github.com/duckcreek/hitro.git
+git clone https://github.com/aks-builds/hitro.git
 cd Hitro
 npm install           # also runs electron-rebuild automatically
 npm run dist:win      # Windows .exe
@@ -130,6 +130,14 @@ console.log('response body:', pm.response.json())
 ## Directory structure
 
 ```
+docs/                       Technical reference documentation
+├── ARCHITECTURE.md         Process model, IPC contract, DB schema
+├── TESTING.md              Unit + E2E test guide
+├── MIGRATION.md            Database migration strategy
+├── RUNBOOK.md              Build, release, and debugging procedures
+├── GUARDRAILS.md           Security and quality constraints
+└── DoD.md                  Definition of Done checklist
+
 src/
 ├── main/                   Electron main process
 │   ├── adapters/           One file per protocol

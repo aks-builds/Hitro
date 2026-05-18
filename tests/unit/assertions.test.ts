@@ -106,4 +106,119 @@ describe('runAssertions', () => {
       expect(results[0].actual).toBe(200)
     })
   })
+
+  describe('gte / lte', () => {
+    it('gte passes when actual >= expected (equal case)', () => {
+      expect(runAssertions([a({ operator: 'gte', expected: '200' })], ctx)[0].passed).toBe(true)
+    })
+    it('gte passes when actual > expected', () => {
+      expect(runAssertions([a({ operator: 'gte', expected: '100' })], ctx)[0].passed).toBe(true)
+    })
+    it('gte fails when actual < expected', () => {
+      expect(runAssertions([a({ operator: 'gte', expected: '201' })], ctx)[0].passed).toBe(false)
+    })
+    it('lte passes when actual <= expected (equal case)', () => {
+      expect(runAssertions([a({ operator: 'lte', expected: '200' })], ctx)[0].passed).toBe(true)
+    })
+    it('lte passes when actual < expected', () => {
+      expect(runAssertions([a({ operator: 'lte', expected: '300' })], ctx)[0].passed).toBe(true)
+    })
+    it('lte fails when actual > expected', () => {
+      expect(runAssertions([a({ operator: 'lte', expected: '199' })], ctx)[0].passed).toBe(false)
+    })
+    it('gte returns error for non-numeric values', () => {
+      const r = runAssertions([a({ field: 'header.content-type', operator: 'gte', expected: '200' })], ctx)
+      expect(r[0].passed).toBe(false)
+      expect(r[0].error).toBeTruthy()
+    })
+    it('lte returns error for non-numeric values', () => {
+      const r = runAssertions([a({ field: 'header.content-type', operator: 'lte', expected: '200' })], ctx)
+      expect(r[0].passed).toBe(false)
+      expect(r[0].error).toBeTruthy()
+    })
+  })
+
+  describe('startsWith / endsWith', () => {
+    it('startsWith passes when value starts with prefix', () => {
+      const r = runAssertions([a({ field: 'header.content-type', operator: 'startsWith', expected: 'application' })], ctx)
+      expect(r[0].passed).toBe(true)
+    })
+    it('startsWith fails when value does not start with prefix', () => {
+      const r = runAssertions([a({ field: 'header.content-type', operator: 'startsWith', expected: 'json' })], ctx)
+      expect(r[0].passed).toBe(false)
+    })
+    it('endsWith passes when value ends with suffix', () => {
+      const r = runAssertions([a({ field: 'header.content-type', operator: 'endsWith', expected: 'json' })], ctx)
+      expect(r[0].passed).toBe(true)
+    })
+    it('endsWith fails when value does not end with suffix', () => {
+      const r = runAssertions([a({ field: 'header.content-type', operator: 'endsWith', expected: 'xml' })], ctx)
+      expect(r[0].passed).toBe(false)
+    })
+  })
+
+  describe('type', () => {
+    it('passes when actual is the expected type', () => {
+      const r = runAssertions([a({ field: 'status', operator: 'type', expected: 'number' })], ctx)
+      expect(r[0].passed).toBe(true)
+    })
+    it('fails when actual is a different type', () => {
+      const r = runAssertions([a({ field: 'status', operator: 'type', expected: 'string' })], ctx)
+      expect(r[0].passed).toBe(false)
+    })
+    it('detects object type on nested body field', () => {
+      // body.users is an Array — typeof [] === 'object'
+      const r = runAssertions([a({ field: 'body.users', operator: 'type', expected: 'object' })], ctx)
+      expect(r[0].passed).toBe(true)
+    })
+  })
+
+  describe('length', () => {
+    it('passes when array length matches', () => {
+      const r = runAssertions([a({ field: 'body.users', operator: 'length', expected: '1' })], ctx)
+      expect(r[0].passed).toBe(true)
+    })
+    it('fails when array length does not match', () => {
+      const r = runAssertions([a({ field: 'body.users', operator: 'length', expected: '2' })], ctx)
+      expect(r[0].passed).toBe(false)
+    })
+    it('returns error when field has no length property', () => {
+      const r = runAssertions([a({ field: 'status', operator: 'length', expected: '3' })], ctx)
+      expect(r[0].passed).toBe(false)
+      expect(r[0].error).toBeTruthy()
+    })
+  })
+
+  describe('isEmpty', () => {
+    it('passes for null', () => {
+      const r = runAssertions([a({ field: 'body.missing', operator: 'isEmpty', expected: '' })], ctx)
+      expect(r[0].passed).toBe(true)
+    })
+    it('fails for non-empty value', () => {
+      const r = runAssertions([a({ field: 'body.total', operator: 'isEmpty', expected: '' })], ctx)
+      expect(r[0].passed).toBe(false)
+    })
+  })
+
+  describe('duration assertion', () => {
+    it('lt passes when duration is below threshold', () => {
+      const r = runAssertions([a({ field: 'duration', operator: 'lt', expected: '5000' })], { ...ctx, duration: 42 })
+      expect(r[0].passed).toBe(true)
+    })
+    it('gte passes when duration meets threshold', () => {
+      const r = runAssertions([a({ field: 'duration', operator: 'gte', expected: '42' })], { ...ctx, duration: 42 })
+      expect(r[0].passed).toBe(true)
+    })
+  })
+
+  describe('isNull', () => {
+    it('passes for undefined path', () => {
+      const r = runAssertions([a({ field: 'body.missing', operator: 'isNull', expected: '' })], ctx)
+      expect(r[0].passed).toBe(true)
+    })
+    it('fails for defined value', () => {
+      const r = runAssertions([a({ field: 'status', operator: 'isNull', expected: '' })], ctx)
+      expect(r[0].passed).toBe(false)
+    })
+  })
 })

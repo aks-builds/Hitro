@@ -10,7 +10,7 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Please report security issues by emailing **security@duckcreek.com** with:
+Please report security issues by emailing **its.aks@outlook.com** with:
 
 - A description of the vulnerability
 - Steps to reproduce it

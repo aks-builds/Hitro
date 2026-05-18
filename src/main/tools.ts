@@ -416,6 +416,150 @@ export function importCollection(json: any): Partial<Collection> {
   throw new Error('Unrecognized format. Expected a Hitro collection JSON or Postman v2/v2.1 collection.')
 }
 
+// ── Insomnia environment import ───────────────────────────────────────────────
+export function importInsomniaEnv(json: any): Partial<Environment> {
+  // Insomnia v4 export format
+  if (json._type === 'export' && Array.isArray(json.resources)) {
+    const envResource = json.resources.find((r: any) => r._type === 'environment')
+    if (!envResource) throw new Error('No environment found in this Insomnia export file.')
+    const data: Record<string, string> = envResource.data ?? {}
+    return {
+      id: crypto.randomUUID(),
+      name: envResource.name ?? 'Insomnia Environment',
+      variables: Object.entries(data).map(([key, value]) => ({
+        id: crypto.randomUUID(), key, value: String(value ?? ''), enabled: true,
+      })),
+      isActive: false,
+    }
+  }
+  // Insomnia v3 / simple flat JSON environment
+  if (typeof json === 'object' && !Array.isArray(json)) {
+    const skipKeys = new Set(['_type', '_id', 'name', 'color', 'created', 'modified', 'isPrivate', 'metaSortKey', 'parentId'])
+    const variables = Object.entries(json)
+      .filter(([k]) => !skipKeys.has(k))
+      .map(([key, value]) => ({ id: crypto.randomUUID(), key, value: String(value ?? ''), enabled: true }))
+    if (variables.length === 0) throw new Error('No environment variables found in this file.')
+    return { id: crypto.randomUUID(), name: (json.name as string) ?? 'Insomnia Environment', variables, isActive: false }
+  }
+  throw new Error('Unrecognized Insomnia environment format. Export from Insomnia using "Export Data" → "Insomnia v4".')
+}
+
+// ── Partial export (export only selected request IDs from a collection) ─────
+export function exportPartialCollection(col: Collection, requestIds: string[]): string {
+  const ids = new Set(requestIds)
+  const filteredRequests = col.requests.filter(r => ids.has(r.id))
+  const filteredFolders  = col.folders.map(f => ({
+    ...f, requests: (f.requests ?? []).filter(r => ids.has(r.id)),
+  })).filter(f => f.requests.length > 0)
+
+  const partial = {
+    ...col,
+    requests: filteredRequests,
+    folders:  filteredFolders,
+    _exportedAt: Date.now(),
+  }
+  return JSON.stringify(partial, null, 2)
+}
+
+// ── Documentation HTML export ─────────────────────────────────────────────────
+export function exportDocsHtml(col: Collection): string {
+  const allRequests: Array<{ req: PikoRequest; folder?: string }> = [
+    ...col.requests.map(r => ({ req: r })),
+    ...col.folders.flatMap(f => f.requests.map(r => ({ req: r, folder: f.name }))),
+  ]
+
+  const methodColor: Record<string, string> = {
+    GET: '#059669', POST: '#6366F1', PUT: '#D97706', PATCH: '#7C3AED',
+    DELETE: '#DC2626', HEAD: '#4B5563', OPTIONS: '#DB2777',
+  }
+
+  const renderRequest = ({ req, folder }: { req: PikoRequest; folder?: string }): string => {
+    const cfg = req.config as any
+    const method = req.protocol === 'rest' ? cfg.method ?? 'GET' : req.protocol.toUpperCase()
+    const url    = cfg.url ?? cfg.host ?? cfg.brokers ?? ''
+    const color  = methodColor[method] ?? '#6366F1'
+    const headers = (cfg.headers ?? []).filter((h: any) => h.enabled && h.key)
+    const params  = (cfg.params  ?? []).filter((h: any) => h.enabled && h.key)
+
+    const tableRows = (rows: Array<{key: string; value: string}>) => rows.length ? `
+      <table>
+        <tr><th>Key</th><th>Value</th></tr>
+        ${rows.map(r => `<tr><td><code>${esc(r.key)}</code></td><td>${esc(r.value)}</td></tr>`).join('')}
+      </table>` : ''
+
+    return `
+    <div class="endpoint">
+      ${folder ? `<div class="folder-badge">📁 ${esc(folder)}</div>` : ''}
+      <div class="endpoint-header">
+        <span class="method-badge" style="background:${color}20;color:${color};border:1px solid ${color}40">${esc(method)}</span>
+        <code class="url">${esc(url)}</code>
+        <h3>${esc(req.name)}</h3>
+      </div>
+      ${params.length  ? `<h4>Query Parameters</h4>${tableRows(params)}`  : ''}
+      ${headers.length ? `<h4>Headers</h4>${tableRows(headers)}` : ''}
+      ${req.protocol === 'rest' && cfg.body && cfg.bodyType !== 'none'
+        ? `<h4>Body <span class="tag">${cfg.bodyType}</span></h4><pre>${esc(cfg.body)}</pre>` : ''}
+      ${req.assertions?.length ? `<h4>Assertions</h4>
+        <ul>${req.assertions.map((a: any) => `<li><code>${esc(a.field)}</code> <strong>${a.operator}</strong> <code>${esc(a.expected ?? '')}</code></li>`).join('')}</ul>` : ''}
+    </div>`
+  }
+
+  const esc = (s: string) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(col.name)} — API Reference</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0D1117; color: #E6EDF3; line-height: 1.6; }
+  .header { background: linear-gradient(135deg, #6366F1, #7C3AED); padding: 48px 64px; }
+  .header h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; }
+  .header p { color: rgba(255,255,255,0.7); margin-top: 8px; font-size: 14px; }
+  .meta { color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 4px; }
+  .content { max-width: 960px; margin: 0 auto; padding: 48px 32px; }
+  .endpoint { background: #131A24; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .endpoint-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .method-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.5px; }
+  .url { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 4px 12px; font-size: 12px; color: #8B949E; flex-shrink: 0; }
+  h3 { font-size: 16px; font-weight: 600; color: #E6EDF3; }
+  h4 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #484F58; margin: 16px 0 8px; }
+  .tag { background: rgba(99,102,241,0.15); color: #6366F1; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 6px 12px; background: rgba(255,255,255,0.03); color: #484F58; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 6px 12px; border-top: 1px solid rgba(255,255,255,0.05); color: #8B949E; }
+  td code { color: #6366F1; background: rgba(99,102,241,0.08); border-radius: 4px; padding: 1px 6px; font-size: 11px; }
+  pre { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 12px 16px; font-size: 11px; overflow-x: auto; color: #8B949E; white-space: pre-wrap; }
+  ul { padding-left: 20px; font-size: 12px; color: #8B949E; }
+  li { margin-bottom: 4px; }
+  .folder-badge { font-size: 11px; color: #484F58; margin-bottom: 12px; }
+  .footer { text-align: center; padding: 32px; font-size: 11px; color: #484F58; border-top: 1px solid rgba(255,255,255,0.05); }
+  @media (prefers-color-scheme: light) {
+    body { background: #F5F7FB; color: #0D1117; }
+    .endpoint { background: #FFFFFF; border-color: rgba(0,0,0,0.08); }
+    .url { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); color: #5C6370; }
+    th { background: rgba(0,0,0,0.03); color: #9CA3AF; }
+    td { color: #5C6370; border-color: rgba(0,0,0,0.05); }
+    pre { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.07); color: #5C6370; }
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>${esc(col.name)}</h1>
+  <p>${allRequests.length} endpoint${allRequests.length !== 1 ? 's' : ''} · Generated by <strong>Hitro</strong></p>
+  <div class="meta">Exported ${new Date().toLocaleString()}</div>
+</div>
+<div class="content">
+  ${allRequests.map(renderRequest).join('\n')}
+</div>
+<div class="footer">Generated with Hitro API Client · Opens in Microsoft Word and all modern browsers</div>
+</body>
+</html>`
+}
+
 function _importPostman(json: any): Partial<Collection> {
   const getParam = (arr: any[], key: string): string =>
     (arr ?? []).find((v: any) => v.key === key)?.value ?? ''

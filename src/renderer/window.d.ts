@@ -1,6 +1,11 @@
 import type { PikoRequest, PikoResponse, Collection, Environment, StreamEvent, KeyValue, CollectionRunResult, Snapshot, MockServer, LoadTestConfig, LoadTestResult } from '@shared/types'
 
 interface HitroApi {
+  platform:          string
+  windowMinimize:    () => void
+  windowMaximize:    () => void
+  windowClose:       () => void
+
   execute:           (request: PikoRequest) => Promise<PikoResponse & { chainExtractions?: Record<string, string> }>
   wsSend:            (requestId: string, msg: string) => Promise<void>
   wsClose:           (requestId: string) => Promise<void>
@@ -13,6 +18,7 @@ interface HitroApi {
 
   saveRequest:       (r: PikoRequest) => Promise<{ ok: boolean }>
   deleteRequest:     (id: string) => Promise<{ ok: boolean }>
+  reorderRequests:   (collectionId: string, orderedIds: string[]) => Promise<{ ok: boolean }>
 
   getHistory:        () => Promise<{ request: PikoRequest; response: PikoResponse; timestamp: number }[]>
   clearHistory:      () => Promise<{ ok: boolean }>
@@ -23,6 +29,11 @@ interface HitroApi {
 
   getGlobalVars:     () => Promise<KeyValue[]>
   saveGlobalVars:    (vars: KeyValue[]) => Promise<{ ok: boolean }>
+
+  getGlobalHeaders:  () => Promise<KeyValue[]>
+  saveGlobalHeaders: (hdrs: KeyValue[]) => Promise<{ ok: boolean }>
+
+  oauth2Authorize:   (opts: { authUrl: string; tokenUrl: string; clientId: string; clientSecret?: string; scope?: string }) => Promise<{ ok: boolean; accessToken: string; tokenType: string; scope?: string; expiresIn?: number }>
 
   collectionRun:     (collectionId: string) => Promise<CollectionRunResult[]>
   onRunnerProgress:  (cb: (result: CollectionRunResult) => void) => void
@@ -48,9 +59,12 @@ interface HitroApi {
   importCurl:        (curl: string) => Promise<Partial<PikoRequest>>
   importOpenApi:     (spec: object) => Promise<Partial<Collection>>
   importHar:         (har: object) => Promise<Partial<Collection>>
-  importDotenv:      (content: string, name?: string) => Promise<Partial<Environment>>
-  importCollection:  (json: object) => Promise<Partial<Collection>>
-  exportCollection:  (col: Collection) => Promise<string>
+  importDotenv:          (content: string, name?: string) => Promise<Partial<Environment>>
+  importCollection:      (json: object) => Promise<Partial<Collection>>
+  exportCollection:      (col: Collection) => Promise<string>
+  importInsomniaEnv:     (json: object) => Promise<Partial<Environment>>
+  exportPartial:         (col: Collection, ids: string[]) => Promise<string>
+  exportDocsHtml:        (col: Collection) => Promise<string>
 
   openFile:          (opts?: { filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>
   readFile:          (path: string) => Promise<string>

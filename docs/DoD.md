@@ -8,7 +8,7 @@ A change is "done" only when **all** items below are checked off.
 - [ ] No `any` types introduced without an explanatory comment
 - [ ] No Node.js built-in modules imported in renderer-side files
 - [ ] No console.log / console.error left in production code paths
-- [ ] All new IPC channels are listed in `ARCHITECTURE.md`
+- [ ] All new IPC channels are listed in `docs/ARCHITECTURE.md`
 
 ## Tests
 
@@ -28,7 +28,7 @@ A change is "done" only when **all** items below are checked off.
 ## Documentation
 
 - [ ] `CHANGELOG.md` entry added under the appropriate version header
-- [ ] `ARCHITECTURE.md` updated if IPC channels or the data model changed
+- [ ] `docs/ARCHITECTURE.md` updated if IPC channels or the data model changed
 - [ ] `README.md` updated if user-facing behaviour changed
 - [ ] Inline comments added for non-obvious logic only
 

@@ -136,7 +136,7 @@ Hitro is designed to be extensible. To add a new protocol:
 
 6. **Tests** — add unit tests for the adapter and E2E tests for the UI flow.
 
-See `ARCHITECTURE.md` for the full IPC contract.
+See `docs/ARCHITECTURE.md` for the full IPC contract.
 
 ---
 

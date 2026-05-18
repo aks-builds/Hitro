@@ -8,6 +8,7 @@ export interface KeyValue {
 export interface Assertion {
   id: string; field: string
   operator: 'eq' | 'ne' | 'contains' | 'matches' | 'exists' | 'not_exists' | 'gt' | 'lt'
+           | 'gte' | 'lte' | 'startsWith' | 'endsWith' | 'type' | 'length' | 'isEmpty' | 'isNull'
   expected: string; enabled: boolean
 }
 
@@ -32,7 +33,7 @@ export type AuthConfig =
   | { type: 'bearer'; token: string }
   | { type: 'basic'; username: string; password: string }
   | { type: 'apikey'; key: string; value: string; placement: 'header' | 'query' }
-  | { type: 'oauth2'; tokenUrl: string; clientId: string; clientSecret: string; scope?: string; accessToken?: string }
+  | { type: 'oauth2'; tokenUrl: string; clientId: string; clientSecret: string; scope?: string; accessToken?: string; authUrl?: string; grantType?: 'client_credentials' | 'pkce' }
   | { type: 'digest'; username: string; password: string }
   | { type: 'awssigv4'; accessKeyId: string; secretAccessKey: string; region: string; service: string; sessionToken?: string }
   | { type: 'mtls'; certPath: string; keyPath: string; caPath?: string }

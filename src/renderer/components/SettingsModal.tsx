@@ -50,18 +50,19 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="w-[520px] max-h-[85vh] rounded-2xl border border-pk-border flex flex-col overflow-hidden animate-slide-in"
-        style={{ background: 'var(--pk-surface)', boxShadow: '0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.05)' }}
+        className="w-[520px] max-h-[85vh] rounded-2xl flex flex-col overflow-hidden animate-scale-in shadow-modal"
+        style={{ background: 'var(--pk-surface)', border: '1px solid var(--pk-border)' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-pk-border flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--pk-border)' }}>
           <div>
-            <h2 className="text-sm font-semibold text-pk-text">Settings</h2>
-            <p className="text-xs text-pk-muted mt-0.5">Customize your Hitro experience</p>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--pk-text)' }}>Settings</h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--pk-muted)' }}>Customize your Hitro experience</p>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-pk-muted hover:text-pk-text hover:bg-pk-hover transition-all text-lg leading-none"
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all text-lg leading-none"
+            style={{ color: 'var(--pk-muted)' }}
           >
             ×
           </button>
@@ -72,21 +73,20 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
 
           {/* Appearance */}
           <section>
-            <h3 className="text-[11px] font-semibold text-pk-muted uppercase tracking-widest mb-3">Appearance</h3>
+            <h3 className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--pk-muted)' }}>Appearance</h3>
             <div className="grid grid-cols-3 gap-3">
               {THEMES.map(t => (
                 <button
                   key={t.value}
                   onClick={() => setTheme(t.value)}
-                  className={`flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition-all ${
-                    theme === t.value
-                      ? 'border-pk-accent bg-pk-accent/8 shadow-glow-accent'
-                      : 'border-pk-border hover:border-pk-accent/40 hover:bg-pk-hover'
-                  }`}
+                  className="flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition-all"
+                  style={theme === t.value
+                    ? { borderColor: 'var(--pk-accent)', background: 'color-mix(in srgb, var(--pk-accent) 8%, transparent)' }
+                    : { borderColor: 'var(--pk-border)' }}
                 >
-                  <span className={theme === t.value ? 'text-pk-accent' : 'text-pk-muted'}>{t.icon}</span>
-                  <span className="text-xs font-semibold text-pk-text">{t.label}</span>
-                  <span className="text-[10px] text-pk-muted text-center leading-tight">{t.desc}</span>
+                  <span style={{ color: theme === t.value ? 'var(--pk-accent)' : 'var(--pk-muted)' }}>{t.icon}</span>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--pk-text)' }}>{t.label}</span>
+                  <span className="text-[10px] text-center leading-tight" style={{ color: 'var(--pk-muted)' }}>{t.desc}</span>
                 </button>
               ))}
             </div>
@@ -94,15 +94,16 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
 
           {/* Keyboard shortcuts */}
           <section>
-            <h3 className="text-[11px] font-semibold text-pk-muted uppercase tracking-widest mb-3">Keyboard Shortcuts</h3>
-            <div className="rounded-xl border border-pk-border overflow-hidden" style={{ background: 'var(--pk-panel)' }}>
+            <h3 className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--pk-muted)' }}>Keyboard Shortcuts</h3>
+            <div className="rounded-xl overflow-hidden" style={{ background: 'var(--pk-panel)', border: '1px solid var(--pk-border)' }}>
               {SHORTCUTS.map(([label, shortcut], i) => (
                 <div
                   key={label}
-                  className={`flex items-center justify-between px-4 py-2.5 ${i < SHORTCUTS.length - 1 ? 'border-b border-pk-border/60' : ''}`}
+                  className={`flex items-center justify-between px-4 py-2.5`}
+                  style={i < SHORTCUTS.length - 1 ? { borderBottom: '1px solid var(--pk-border-s)' } : undefined}
                 >
-                  <span className="text-xs text-pk-text">{label}</span>
-                  <span className="text-[11px] font-mono text-pk-muted bg-pk-border/40 px-2 py-0.5 rounded-md">{shortcut}</span>
+                  <span className="text-xs" style={{ color: 'var(--pk-text)' }}>{label}</span>
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-md" style={{ color: 'var(--pk-muted)', background: 'var(--pk-elevated)' }}>{shortcut}</span>
                 </div>
               ))}
             </div>
@@ -110,10 +111,10 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
 
           {/* About */}
           <section>
-            <h3 className="text-[11px] font-semibold text-pk-muted uppercase tracking-widest mb-3">About</h3>
+            <h3 className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--pk-muted)' }}>About</h3>
             <div
-              className="flex items-center gap-4 p-4 rounded-xl border border-pk-border"
-              style={{ background: 'var(--pk-panel)' }}
+              className="flex items-center gap-4 p-4 rounded-xl"
+              style={{ background: 'var(--pk-panel)', border: '1px solid var(--pk-border)' }}
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -132,9 +133,9 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-bold text-pk-text">Hitro</p>
-                <p className="text-xs text-pk-muted mt-0.5">Multi-Protocol API Client · v1.0.0</p>
-                <p className="text-[11px] text-pk-faint mt-1.5">Electron · React · TypeScript · SQLite</p>
+                <p className="text-sm font-bold" style={{ color: 'var(--pk-text)' }}>Hitro</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--pk-muted)' }}>Multi-Protocol API Client · v1.0.0</p>
+                <p className="text-[11px] mt-1.5" style={{ color: 'var(--pk-faint)' }}>Electron · React · TypeScript · SQLite</p>
               </div>
             </div>
           </section>

@@ -64,14 +64,17 @@ All communication is asynchronous invoke/handle pairs. Channel names follow `<pr
 | `db:getCollections` | renderer → main | — | `Collection[]` |
 | `db:saveCollection` | renderer → main | `Collection` | `void` |
 | `db:deleteCollection` | renderer → main | `{ id: string }` | `void` |
-| `db:getRequests` | renderer → main | `{ collectionId?: string }` | `NexusRequest[]` |
-| `db:saveRequest` | renderer → main | `NexusRequest` | `void` |
+| `db:getRequests` | renderer → main | `{ collectionId?: string }` | `PikoRequest[]` |
+| `db:saveRequest` | renderer → main | `PikoRequest` | `void` |
 | `db:deleteRequest` | renderer → main | `{ id: string }` | `void` |
 | `db:getHistory` | renderer → main | — | `HitroResponse[]` |
 | `db:addHistory` | renderer → main | `HitroResponse` | `void` |
 | `db:getEnvironments` | renderer → main | — | `Environment[]` |
 | `db:saveEnvironment` | renderer → main | `Environment` | `void` |
 | `db:deleteEnvironment` | renderer → main | `{ id: string }` | `void` |
+| `db-get-history` | renderer → main | — | `{ request, response, timestamp }[]` |
+| `db-clear-history` | renderer → main | — | `{ ok: boolean }` |
+| `stream-event` | main → renderer | `{ requestId: string; event: StreamEvent }` | — (push) |
 
 ---
 
@@ -80,12 +83,12 @@ All communication is asynchronous invoke/handle pairs. Channel names follow `<pr
 `src/renderer/store/appStore.ts` is the single Zustand store. All renderer state lives here.
 
 Key slices:
-- **tabs** — open request tabs (transient, not persisted)
+- **tabs** — open request tabs (transient, not persisted); each tab carries a `streamEvents` ring buffer (capped at 1 000 entries) and an `isDirty` flag shown as an amber dot in the tab bar
 - **activeTabId** — currently visible tab
 - **collections** — loaded from SQLite on startup
 - **environments** — loaded from SQLite on startup
-- **activeEnvironmentId** — which env's variables are substituted
-- **history** — last 100 executions (persisted in SQLite)
+- **activeEnvironmentId** — which env's variables are substituted; the active name is shown as a badge in the title bar
+- **globalVariables** — cross-environment key-value pairs
 
 ---
 
@@ -162,4 +165,4 @@ Vite bundles the renderer into `dist/renderer/`. The main TypeScript compiles to
 
 ## Adding a protocol adapter
 
-See the [Contributing guide](CONTRIBUTING.md#adding-a-protocol-adapter) for step-by-step instructions.
+See the [Contributing guide](../CONTRIBUTING.md#adding-a-protocol-adapter) for step-by-step instructions.

@@ -1,23 +1,37 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useThemeSetting } from '../hooks/useTheme'
+import { useAppStore } from '../store/appStore'
+import WhatsNewModal from './WhatsNewModal'
 
-function ThemeIcon({ theme }: { theme: 'light' | 'dark' | 'system' }) {
-  if (theme === 'dark') return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+function SunIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd"/>
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
       <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
     </svg>
   )
-  if (theme === 'system') return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+}
+
+function MonitorIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
       <rect x="2" y="3" width="16" height="11" rx="2"/>
       <path d="M7 17h6M10 14v3" strokeLinecap="round"/>
     </svg>
   )
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd"/>
-    </svg>
-  )
+}
+
+function ThemeIcon({ theme }: { theme: 'light' | 'dark' | 'system' }) {
+  if (theme === 'dark')   return <MoonIcon />
+  if (theme === 'system') return <MonitorIcon />
+  return <SunIcon />
 }
 
 interface Props {
@@ -26,25 +40,25 @@ interface Props {
 }
 
 export default function TitleBar({ onOpenSettings, onOpenImport }: Props) {
-  const api = (window as any).api
-  const isMac     = api?.platform === 'darwin'
-  const isWindows = api?.platform === 'win32'
+  const isMac     = window.api.platform === 'darwin'
+  const isWindows = window.api.platform === 'win32'
 
-  const [theme, setTheme]   = useThemeSetting()
+  const [theme, setTheme]       = useThemeSetting()
   const [profileOpen, setProfileOpen] = useState(false)
+  const [showWhatsNew, setShowWhatsNew] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
+  const activeEnv = useAppStore(s => s.activeEnv())
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node))
         setProfileOpen(false)
-      }
     }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [])
 
-  const THEME_CYCLE: Array<'light' | 'dark' | 'system'> = ['light', 'dark', 'system']
+  const THEME_CYCLE: ('light' | 'dark' | 'system')[] = ['light', 'dark', 'system']
   const THEME_LABELS = { light: 'Light', dark: 'Dark', system: 'System' }
   const cycleTheme = () => setTheme(THEME_CYCLE[(THEME_CYCLE.indexOf(theme) + 1) % 3])
 
@@ -52,171 +66,229 @@ export default function TitleBar({ onOpenSettings, onOpenImport }: Props) {
 
   const menuItems = [
     {
-      icon: <SettingsIcon />, label: 'Settings',
+      label: 'Settings',
+      icon: <SettingsIcon />,
       action: () => { setProfileOpen(false); onOpenSettings() },
     },
     {
-      icon: <ImportIcon />, label: 'Import / Export',
+      label: 'Import / Export',
+      icon: <ImportIcon />,
       action: () => { setProfileOpen(false); onOpenImport() },
     },
     {
-      icon: <HelpIcon />, label: 'Help & Shortcuts',
-      action: () => { setProfileOpen(false); onOpenSettings() }, // opens settings which has shortcuts
+      label: "What's New",
+      icon: <SparkleIcon />,
+      action: () => { setProfileOpen(false); setShowWhatsNew(true) },
+      accent: true,
     },
   ]
 
   return (
     <div
-      className="flex items-center h-11 flex-shrink-0 border-b border-pk-border select-none"
+      className="flex items-center h-11 flex-shrink-0 select-none"
       style={{
         background: 'var(--pk-surface)',
         WebkitAppRegion: 'drag',
-        boxShadow: '0 1px 0 rgba(0,0,0,0.06)',
+        boxShadow: '0 1px 0 var(--pk-border)',
         zIndex: 100,
       } as any}
     >
-      {/* macOS traffic-light spacer */}
       {isMac && <div style={{ width: 80, flexShrink: 0 }} />}
 
-      {/* ── Brand ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-2.5 px-4 flex-shrink-0" style={noDrag}>
+      {/* Brand */}
+      <div className="flex items-center gap-2 px-4 flex-shrink-0" style={noDrag}>
         <div
-          className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #38BDF8 100%)', boxShadow: '0 2px 8px rgba(99,102,241,0.35)' }}
+          className="w-[26px] h-[26px] rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{
+            background: 'linear-gradient(135deg, #6366F1 0%, #7C3AED 50%, #38BDF8 100%)',
+            boxShadow: '0 2px 10px rgba(99,102,241,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
+          }}
         >
-          <svg width="13" height="13" viewBox="0 0 32 32" fill="none">
+          <svg width="14" height="14" viewBox="0 0 32 32" fill="none">
             <circle cx="16" cy="16" r="6" fill="white" fillOpacity="0.95"/>
-            <circle cx="6"  cy="10" r="3.5" fill="white" fillOpacity="0.7"/>
-            <circle cx="26" cy="10" r="3.5" fill="white" fillOpacity="0.7"/>
-            <circle cx="6"  cy="22" r="3.5" fill="white" fillOpacity="0.7"/>
-            <circle cx="26" cy="22" r="3.5" fill="white" fillOpacity="0.7"/>
-            <line x1="16" y1="16" x2="6"  y2="10" stroke="white" strokeOpacity="0.5" strokeWidth="1.5"/>
-            <line x1="16" y1="16" x2="26" y2="10" stroke="white" strokeOpacity="0.5" strokeWidth="1.5"/>
-            <line x1="16" y1="16" x2="6"  y2="22" stroke="white" strokeOpacity="0.5" strokeWidth="1.5"/>
-            <line x1="16" y1="16" x2="26" y2="22" stroke="white" strokeOpacity="0.5" strokeWidth="1.5"/>
+            <circle cx="6"  cy="10" r="3.5" fill="white" fillOpacity="0.65"/>
+            <circle cx="26" cy="10" r="3.5" fill="white" fillOpacity="0.65"/>
+            <circle cx="6"  cy="22" r="3.5" fill="white" fillOpacity="0.65"/>
+            <circle cx="26" cy="22" r="3.5" fill="white" fillOpacity="0.65"/>
+            <line x1="16" y1="16" x2="6"  y2="10" stroke="white" strokeOpacity="0.4" strokeWidth="1.5"/>
+            <line x1="16" y1="16" x2="26" y2="10" stroke="white" strokeOpacity="0.4" strokeWidth="1.5"/>
+            <line x1="16" y1="16" x2="6"  y2="22" stroke="white" strokeOpacity="0.4" strokeWidth="1.5"/>
+            <line x1="16" y1="16" x2="26" y2="22" stroke="white" strokeOpacity="0.4" strokeWidth="1.5"/>
           </svg>
         </div>
-        <span className="text-sm font-bold text-pk-text tracking-tight">Hitro</span>
-        <span className="text-pk-border text-xs">│</span>
-        <span className="text-xs text-pk-muted hidden sm:block">API Client</span>
+        <span className="text-sm font-bold tracking-tight" style={{ color: 'var(--pk-text)' }}>Hitro</span>
+        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
+          style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--pk-accent)' }}>
+          API Client
+        </span>
       </div>
 
-      {/* ── Search stub ───────────────────────────────────── */}
+      {/* Active environment badge */}
       <div className="flex-1 flex justify-center items-center min-w-0 px-4" style={noDrag}>
-        <button
-          className="flex items-center gap-2.5 h-7 px-3 rounded-lg border border-pk-border w-full max-w-xs transition-all hover:border-pk-accent/50"
-          style={{ background: 'var(--pk-panel)', cursor: 'default' }}
-          title="Search / Command palette (coming soon)"
-        >
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="flex-shrink-0 text-pk-faint">
-            <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5"/>
-            <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
-          <span className="text-xs text-pk-faint flex-1 text-left">Search requests, collections…</span>
-          <kbd>⌘K</kbd>
-        </button>
+        {activeEnv ? (
+          <div
+            className="flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[10px] font-semibold select-none"
+            style={{
+              background: 'rgba(63,185,80,0.1)',
+              border: '1px solid rgba(63,185,80,0.25)',
+              color: 'var(--pk-success)',
+            }}
+            title={`Active environment: ${activeEnv.name}`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--pk-success)' }} />
+            {activeEnv.name}
+          </div>
+        ) : (
+          <div
+            className="flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[10px] font-medium select-none"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid var(--pk-border)',
+              color: 'var(--pk-faint)',
+            }}
+            title="No environment active — variables will not be substituted"
+          >
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--pk-faint)' }} />
+            No environment
+          </div>
+        )}
       </div>
 
-      {/* ── Right controls ────────────────────────────────── */}
+      {/* Right controls */}
       <div className="flex items-center gap-0.5 px-2 flex-shrink-0" style={noDrag}>
 
         {/* Theme toggle */}
         <button
           onClick={cycleTheme}
           title={`Theme: ${THEME_LABELS[theme]} — click to cycle`}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-pk-muted hover:text-pk-text hover:bg-pk-hover transition-all"
+          className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+          style={{ color: 'var(--pk-muted)' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--pk-elevated)', e.currentTarget.style.color = 'var(--pk-text)')}
+          onMouseLeave={e => (e.currentTarget.style.background = '', e.currentTarget.style.color = 'var(--pk-muted)')}
         >
           <ThemeIcon theme={theme} />
         </button>
 
-        {/* Notifications */}
-        <button
-          title="Notifications"
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-pk-muted hover:text-pk-text hover:bg-pk-hover transition-all"
-        >
-          <svg width="14" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 2a6 6 0 0 0-6 6v3.586l-.707.707A1 1 0 0 0 4 14h12a1 1 0 0 0 .707-1.707L16 11.586V8a6 6 0 0 0-6-6z"/>
-            <path d="M10 18a2 2 0 0 0 2-2H8a2 2 0 0 0 2 2z"/>
-          </svg>
-        </button>
+        <div className="w-px h-4 mx-1 flex-shrink-0" style={{ background: 'var(--pk-border-s)' }} />
 
-        <div className="w-px h-5 bg-pk-border mx-1 flex-shrink-0" />
-
-        {/* Profile avatar + dropdown */}
+        {/* Profile */}
         <div className="relative" ref={profileRef}>
           <button
             onClick={() => setProfileOpen(v => !v)}
-            className="flex items-center gap-2 h-8 px-2 rounded-lg hover:bg-pk-hover transition-all"
+            className="flex items-center gap-1.5 h-8 px-2 rounded-lg transition-all"
+            style={{ color: 'var(--pk-muted)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--pk-elevated)')}
+            onMouseLeave={e => (e.currentTarget.style.background = '')}
           >
             <div
               className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)', boxShadow: '0 1px 4px rgba(99,102,241,0.4)' }}
+              style={{ background: 'linear-gradient(135deg, #6366F1, #7C3AED)', boxShadow: '0 1px 4px rgba(99,102,241,0.4)' }}
             >
               AS
             </div>
-            <span className="text-xs font-medium text-pk-text hidden md:block">Aditya Singh</span>
-            <svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor" className="text-pk-faint">
-              <path d="M0 0.5L5 5.5L10 0.5H0Z"/>
+            <svg width="9" height="5" viewBox="0 0 9 5" fill="currentColor" style={{ color: 'var(--pk-faint)' }}>
+              <path d="M0 0.5L4.5 5L9 0.5H0Z"/>
             </svg>
           </button>
 
           {profileOpen && (
             <div
-              className="absolute right-0 top-full mt-1.5 w-60 rounded-xl border border-pk-border overflow-hidden z-50 animate-slide-in"
-              style={{ background: 'var(--pk-surface)', boxShadow: '0 16px 48px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.04)' }}
+              className="absolute right-0 top-full mt-1.5 w-56 rounded-xl border overflow-hidden z-50 animate-scale-in"
+              style={{
+                background: 'var(--pk-panel)',
+                border: '1px solid var(--pk-border-s)',
+                boxShadow: '0 16px 48px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3)',
+              }}
             >
-              {/* Profile header */}
-              <div className="px-4 py-3.5 border-b border-pk-border">
-                <div className="flex items-center gap-3">
+              <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--pk-border)' }}>
+                <div className="flex items-center gap-2.5">
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)', boxShadow: '0 2px 8px rgba(99,102,241,0.35)' }}
-                  >
-                    AS
-                  </div>
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #6366F1, #7C3AED)' }}
+                  >AS</div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-pk-text truncate">Aditya Singh</p>
-                    <p className="text-xs text-pk-muted truncate">aditya.k.singh@duckcreek.com</p>
+                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--pk-text)' }}>Aditya Singh</p>
+                    <p className="text-[10px] truncate" style={{ color: 'var(--pk-muted)' }}>aditya.k.singh@duckcreek.com</p>
                   </div>
                 </div>
               </div>
 
-              {/* Menu items */}
               {menuItems.map(item => (
                 <button
                   key={item.label}
                   onClick={item.action}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-pk-text hover:bg-pk-hover transition-colors text-left"
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors"
+                  style={{ color: (item as any).accent ? 'var(--pk-accent)' : 'var(--pk-text)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--pk-elevated)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}
                 >
-                  <span className="text-pk-muted w-4 flex items-center justify-center flex-shrink-0">{item.icon}</span>
-                  <span>{item.label}</span>
+                  <span style={{ color: (item as any).accent ? 'var(--pk-accent)' : 'var(--pk-muted)' }}>{item.icon}</span>
+                  <span className="flex-1">{item.label}</span>
+                  {(item as any).accent && (
+                    <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold"
+                      style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--pk-accent)' }}>NEW</span>
+                  )}
                 </button>
               ))}
 
-              <div className="border-t border-pk-border px-4 py-2 flex items-center justify-between">
-                <span className="text-[10px] text-pk-faint">Hitro v1.0.0</span>
-                <button className="text-[11px] text-red-500 hover:text-red-400 transition-colors">Sign out</button>
+              <div className="px-4 py-2 flex items-center justify-between border-t" style={{ borderColor: 'var(--pk-border)' }}>
+                <span className="text-[10px]" style={{ color: 'var(--pk-faint)' }}>Hitro v1.0.0</span>
               </div>
             </div>
           )}
         </div>
 
+        {/* What's New button — visible shortcut next to window controls */}
+        <button
+          onClick={() => setShowWhatsNew(true)}
+          title="What's New"
+          className="hidden sm:flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-semibold transition-all"
+          style={{
+            background: 'rgba(99,102,241,0.08)',
+            border: '1px solid rgba(99,102,241,0.2)',
+            color: 'var(--pk-accent)',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.15)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.08)')}
+        >
+          <SparkleIcon />
+          <span>What's New</span>
+        </button>
+
         {/* Windows window controls */}
         {isWindows && (
           <>
-            <div className="w-px h-5 bg-pk-border mx-1.5 flex-shrink-0" />
-            <button onClick={() => api?.windowMinimize()} title="Minimize"
-              className="w-10 h-8 flex items-center justify-center text-pk-muted hover:text-pk-text hover:bg-pk-hover transition-colors rounded-md">
+            <div className="w-px h-4 mx-1.5 flex-shrink-0" style={{ background: 'var(--pk-border-s)' }} />
+            <button
+              onClick={() => window.api.windowMinimize()}
+              title="Minimize"
+              className="w-10 h-8 flex items-center justify-center rounded transition-colors"
+              style={{ color: 'var(--pk-muted)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--pk-elevated)', e.currentTarget.style.color = 'var(--pk-text)')}
+              onMouseLeave={e => (e.currentTarget.style.background = '', e.currentTarget.style.color = 'var(--pk-muted)')}
+            >
               <svg width="11" height="2" viewBox="0 0 11 2" fill="currentColor"><rect width="11" height="1.5" rx="0.75"/></svg>
             </button>
-            <button onClick={() => api?.windowMaximize()} title="Maximize"
-              className="w-10 h-8 flex items-center justify-center text-pk-muted hover:text-pk-text hover:bg-pk-hover transition-colors rounded-md">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.4">
-                <rect x="0.7" y="0.7" width="8.6" height="8.6" rx="1.5"/>
+            <button
+              onClick={() => window.api.windowMaximize()}
+              title="Maximize"
+              className="w-10 h-8 flex items-center justify-center rounded transition-colors"
+              style={{ color: 'var(--pk-muted)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--pk-elevated)', e.currentTarget.style.color = 'var(--pk-text)')}
+              onMouseLeave={e => (e.currentTarget.style.background = '', e.currentTarget.style.color = 'var(--pk-muted)')}
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.3">
+                <rect x="0.65" y="0.65" width="8.7" height="8.7" rx="1.5"/>
               </svg>
             </button>
-            <button onClick={() => api?.windowClose()} title="Close"
-              className="w-10 h-8 flex items-center justify-center text-pk-muted hover:text-white hover:bg-red-500 transition-colors rounded-md">
+            <button
+              onClick={() => window.api.windowClose()}
+              title="Close"
+              className="w-10 h-8 flex items-center justify-center rounded transition-all"
+              style={{ color: 'var(--pk-muted)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#F85149', e.currentTarget.style.color = '#fff')}
+              onMouseLeave={e => (e.currentTarget.style.background = '', e.currentTarget.style.color = 'var(--pk-muted)')}
+            >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <line x1="1.5" y1="1.5" x2="8.5" y2="8.5"/>
                 <line x1="8.5" y1="1.5" x2="1.5" y2="8.5"/>
@@ -225,7 +297,16 @@ export default function TitleBar({ onOpenSettings, onOpenImport }: Props) {
           </>
         )}
       </div>
+      {showWhatsNew && <WhatsNewModal onClose={() => setShowWhatsNew(false)} />}
     </div>
+  )
+}
+
+function SparkleIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M8 1l1.5 4.5H14l-3.75 2.75 1.5 4.5L8 10l-3.75 2.75 1.5-4.5L2 5.5h4.5z"/>
+    </svg>
   )
 }
 
@@ -241,14 +322,6 @@ function ImportIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
       <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd"/>
-    </svg>
-  )
-}
-
-function HelpIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/>
     </svg>
   )
 }

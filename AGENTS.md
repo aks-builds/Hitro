@@ -5,7 +5,7 @@ This file documents conventions for AI coding agents (Claude, Copilot, Cursor, e
 ## Before you start
 
 1. Read `CLAUDE.md` for a concise codebase orientation.
-2. Read `ARCHITECTURE.md` for the Electron process model and IPC contract.
+2. Read `docs/ARCHITECTURE.md` for the Electron process model and IPC contract.
 3. Run `npx tsc -p tsconfig.json --noEmit && npx tsc -p tsconfig.main.json --noEmit` to confirm the repo compiles before making changes.
 
 ## Boundaries
@@ -15,7 +15,7 @@ This file documents conventions for AI coding agents (Claude, Copilot, Cursor, e
 | Renderer ↔ Main | All cross-boundary calls go through the IPC channels declared in `preload.ts`. Never bypass via `remote` or `eval`. |
 | Adapters | Each adapter is self-contained. Do not import one adapter from another. |
 | Store | Renderer state mutations must go through Zustand actions, not direct object mutation. |
-| Database | SQLite access is limited to `src/main/database.ts`. Do not open a second connection. |
+| Database | SQLite access is limited to `src/main/database.ts`. Do not open a second connection. See `docs/GUARDRAILS.md`. |
 
 ## Change checklist
 

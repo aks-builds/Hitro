@@ -1,7 +1,8 @@
 ﻿import { Assertion, AssertionResult } from './types'
 
-function getByPath(context: { status?: number; headers?: Record<string, string>; body?: any }, path: string): any {
-  if (path === 'status') return context.status
+function getByPath(context: { status?: number; headers?: Record<string, string>; body?: any; duration?: number }, path: string): any {
+  if (path === 'status')   return context.status
+  if (path === 'duration') return context.duration
   if (path.startsWith('header.')) return context.headers?.[path.slice(7).toLowerCase()]
 
   const bodyPath = path.startsWith('body.') ? path.slice(5) : path
@@ -16,7 +17,7 @@ function getByPath(context: { status?: number; headers?: Record<string, string>;
 
 export function runAssertions(
   assertions: Assertion[],
-  context: { status?: number; headers?: Record<string, string>; body?: any },
+  context: { status?: number; headers?: Record<string, string>; body?: any; duration?: number },
 ): AssertionResult[] {
   return assertions.filter(a => a.enabled).map(a => {
     try {
@@ -39,6 +40,26 @@ export function runAssertions(
           if (isNaN(nAct) || isNaN(nExp)) throw new Error(`lt requires numeric values; got "${actual}" and "${a.expected}"`)
           passed = nAct < nExp; break
         }
+        case 'gte': {
+          const nAct = Number(actual), nExp = Number(a.expected)
+          if (isNaN(nAct) || isNaN(nExp)) throw new Error(`gte requires numeric values; got "${actual}" and "${a.expected}"`)
+          passed = nAct >= nExp; break
+        }
+        case 'lte': {
+          const nAct = Number(actual), nExp = Number(a.expected)
+          if (isNaN(nAct) || isNaN(nExp)) throw new Error(`lte requires numeric values; got "${actual}" and "${a.expected}"`)
+          passed = nAct <= nExp; break
+        }
+        case 'startsWith': passed = String(actual).startsWith(a.expected); break
+        case 'endsWith':   passed = String(actual).endsWith(a.expected); break
+        case 'type':       passed = typeof actual === a.expected; break
+        case 'length': {
+          const len = actual?.length
+          if (len === undefined) throw new Error(`length operator requires a string or array; got ${typeof actual}`)
+          passed = len === Number(a.expected); break
+        }
+        case 'isEmpty':    passed = actual == null || actual === '' || (Array.isArray(actual) && actual.length === 0); break
+        case 'isNull':     passed = actual == null; break
       }
       return { assertion: a, passed, actual }
     } catch (err: any) {

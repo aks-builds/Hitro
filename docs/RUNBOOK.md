@@ -44,7 +44,7 @@ Electron-builder reads `package.json#build` for icons, app ID, and output config
 
 ### Open DevTools
 
-In a running dev build, press `Ctrl+Shift+I` (Windows/Linux) or `Cmd+Option+I` (macOS), or set `NEXUS_DEV_TOOLS=1` to open them automatically on launch.
+In a running dev build, press `Ctrl+Shift+I` (Windows/Linux) or `Cmd+Option+I` (macOS), or set `HITRO_DEV_TOOLS=1` to open them automatically on launch.
 
 ### Main process logs
 

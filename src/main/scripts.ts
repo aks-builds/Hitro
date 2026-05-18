@@ -34,9 +34,9 @@ export function runScript(script: string, ctx: ScriptContext): ScriptResult {
       test: (name: string, fn: () => void) => {
         try {
           fn()
-          logs.push({ level: 'log', message: `âœ“ ${name}`, timestamp: Date.now() })
+          logs.push({ level: 'log', message: `✓ ${name}`, timestamp: Date.now() })
         } catch (e: any) {
-          logs.push({ level: 'error', message: `âœ— ${name}: ${e.message}`, timestamp: Date.now() })
+          logs.push({ level: 'error', message: `✗ ${name}: ${e.message}`, timestamp: Date.now() })
         }
       },
       expect: (actual: any) => ({
@@ -74,11 +74,20 @@ export function runScript(script: string, ctx: ScriptContext): ScriptResult {
         responseTime: ctx.response?.duration,
       },
     },
-    console: {
-      log:   (...a: any[]) => logs.push({ level: 'log',   message: a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' '), timestamp: Date.now() }),
-      warn:  (...a: any[]) => logs.push({ level: 'warn',  message: a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' '), timestamp: Date.now() }),
-      error: (...a: any[]) => logs.push({ level: 'error', message: a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' '), timestamp: Date.now() }),
-    },
+    console: (() => {
+      // Serialize any value correctly — handles undefined, null, circular refs, functions
+      const serialize = (x: any): string => {
+        if (x === undefined)     return 'undefined'
+        if (x === null)          return 'null'
+        if (typeof x === 'function') return `[Function: ${x.name || 'anonymous'}]`
+        if (typeof x !== 'object') return String(x)
+        try { return JSON.stringify(x, null, 2) }
+        catch { return '[Circular]' }
+      }
+      const log = (level: 'log' | 'warn' | 'error') =>
+        (...a: any[]) => logs.push({ level, message: a.map(serialize).join(' '), timestamp: Date.now() })
+      return { log: log('log'), warn: log('warn'), error: log('error') }
+    })(),
     JSON,
     parseInt,
     parseFloat,

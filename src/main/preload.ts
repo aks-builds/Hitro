@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('api', {
   // ── Requests ───────────────────────────────────────────────────────────────
   saveRequest:        (r: any)      => ipcRenderer.invoke('db-save-request', r),
   deleteRequest:      (id: string)  => ipcRenderer.invoke('db-delete-request', id),
+  reorderRequests:    (collectionId: string, orderedIds: string[]) => ipcRenderer.invoke('db-reorder-requests', { collectionId, orderedIds }),
 
   // ── History ────────────────────────────────────────────────────────────────
   getHistory:         ()            => ipcRenderer.invoke('db-get-history'),
@@ -37,6 +38,13 @@ contextBridge.exposeInMainWorld('api', {
   // ── Global variables ───────────────────────────────────────────────────────
   getGlobalVars:      ()            => ipcRenderer.invoke('db-get-global-vars'),
   saveGlobalVars:     (vars: any)   => ipcRenderer.invoke('db-save-global-vars', vars),
+
+  // ── Global headers (auto-injected) ─────────────────────────────────────────
+  getGlobalHeaders:   ()            => ipcRenderer.invoke('db-get-global-headers'),
+  saveGlobalHeaders:  (hdrs: any)   => ipcRenderer.invoke('db-save-global-headers', hdrs),
+
+  // ── OAuth 2.0 PKCE browser flow ─────────────────────────────────────────────
+  oauth2Authorize:    (opts: any)   => ipcRenderer.invoke('oauth2:authorize', opts),
 
   // ── Collection runner ──────────────────────────────────────────────────────
   collectionRun:      (collectionId: string) => ipcRenderer.invoke('collection-run', { collectionId }),
@@ -67,9 +75,12 @@ contextBridge.exposeInMainWorld('api', {
   importCurl:         (curl: string)           => ipcRenderer.invoke('tool-import-curl', curl),
   importOpenApi:      (spec: any)              => ipcRenderer.invoke('tool-import-openapi', spec),
   importHar:          (har: any)               => ipcRenderer.invoke('tool-import-har', har),
-  importDotenv:       (content: string, name?: string) => ipcRenderer.invoke('tool-import-dotenv', { content, name }),
-  importCollection:   (json: any)              => ipcRenderer.invoke('tool-import-collection', json),
-  exportCollection:   (col: any)               => ipcRenderer.invoke('tool-export-collection', col),
+  importDotenv:          (content: string, name?: string) => ipcRenderer.invoke('tool-import-dotenv', { content, name }),
+  importCollection:      (json: any)              => ipcRenderer.invoke('tool-import-collection', json),
+  exportCollection:      (col: any)               => ipcRenderer.invoke('tool-export-collection', col),
+  importInsomniaEnv:     (json: any)              => ipcRenderer.invoke('tool-import-insomnia-env', json),
+  exportPartial:         (col: any, ids: string[]) => ipcRenderer.invoke('tool-export-partial', { col, ids }),
+  exportDocsHtml:        (col: any)               => ipcRenderer.invoke('tool-export-docs-html', col),
 
   // ── File system ────────────────────────────────────────────────────────────
   openFile:           (opts?: any)             => ipcRenderer.invoke('open-file', opts),

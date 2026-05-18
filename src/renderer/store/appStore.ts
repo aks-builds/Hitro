@@ -9,6 +9,7 @@ export interface Tab {
   streamEvents: StreamEvent[]
   isDirty: boolean
   wsConnected: boolean
+  isScratch?: boolean
 }
 
 interface AppState {
@@ -17,8 +18,10 @@ interface AppState {
   collections: Collection[]
   environments: Environment[]
   globalVariables: KeyValue[]
+  globalHeaders: KeyValue[]
 
   newTab: (protocol?: Protocol) => void
+  newScratchTab: (protocol?: Protocol) => void
   openRequest: (req: PikoRequest) => void
   closeTab: (id: string) => void
   setActiveTab: (id: string) => void
@@ -39,12 +42,40 @@ interface AppState {
   loadGlobalVars: () => Promise<void>
   saveGlobalVars: (vars: KeyValue[]) => Promise<void>
 
+  loadGlobalHeaders: () => Promise<void>
+  saveGlobalHeaders: (hdrs: KeyValue[]) => Promise<void>
+
   resolve: (str: string) => string
   activeTab: () => Tab | undefined
 }
 
 let _counter = 0
 const makeId = () => `tab-${++_counter}-${Date.now()}`
+
+// Persist tab state to localStorage so all tabs survive app restarts
+function persistTabs(tabs: Tab[], activeTabId: string | null) {
+  try {
+    const snapshot = tabs.map(t => ({
+      id: t.id,
+      request: t.request,
+      isDirty: t.isDirty,
+      isScratch: t.isScratch,
+    }))
+    localStorage.setItem('hitro-tabs', JSON.stringify(snapshot))
+    if (activeTabId) localStorage.setItem('hitro-active-tab', activeTabId)
+  } catch { /* storage quota */ }
+}
+
+export function restoreTabs(): { tabs: Omit<Tab, 'response' | 'streamEvents' | 'isLoading' | 'wsConnected'>[]; activeTabId: string | null } | null {
+  try {
+    const raw = localStorage.getItem('hitro-tabs')
+    const activeTabId = localStorage.getItem('hitro-active-tab')
+    if (!raw) return null
+    const tabs = JSON.parse(raw)
+    if (!Array.isArray(tabs) || tabs.length === 0) return null
+    return { tabs, activeTabId }
+  } catch { return null }
+}
 
 function defaultRequest(protocol: Protocol = 'rest'): PikoRequest {
   return {
@@ -56,14 +87,20 @@ function defaultRequest(protocol: Protocol = 'rest'): PikoRequest {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  tabs: [], activeTabId: null, collections: [], environments: [], globalVariables: [],
+  tabs: [], activeTabId: null, collections: [], environments: [], globalVariables: [], globalHeaders: [],
 
   activeTab: () => get().tabs.find(t => t.id === get().activeTabId),
 
   newTab: (protocol: Protocol = 'rest') => {
     const req = defaultRequest(protocol)
     const tab: Tab = { id: req.id, request: req, isLoading: false, streamEvents: [], isDirty: false, wsConnected: false }
-    set(s => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }))
+    set(s => { const tabs = [...s.tabs, tab]; persistTabs(tabs, tab.id); return { tabs, activeTabId: tab.id } })
+  },
+
+  newScratchTab: (protocol: Protocol = 'rest') => {
+    const req = { ...defaultRequest(protocol), name: 'Scratch Pad' }
+    const tab: Tab = { id: req.id, request: req, isLoading: false, streamEvents: [], isDirty: false, wsConnected: false, isScratch: true }
+    set(s => { const tabs = [...s.tabs, tab]; persistTabs(tabs, tab.id); return { tabs, activeTabId: tab.id } })
   },
 
   openRequest: (req) => {
@@ -76,10 +113,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeTab: (id) => set(s => {
     const tabs = s.tabs.filter(t => t.id !== id)
     const activeTabId = s.activeTabId === id ? (tabs[tabs.length - 1]?.id ?? null) : s.activeTabId
+    persistTabs(tabs, activeTabId)
     return { tabs, activeTabId }
   }),
 
-  setActiveTab: (id) => set({ activeTabId: id }),
+  setActiveTab: (id) => {
+    set({ activeTabId: id })
+    persistTabs(get().tabs, id)
+  },
 
   updateRequest: (tabId, patch) => set(s => ({
     tabs: s.tabs.map(t => {
@@ -110,7 +151,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
 
   addStreamEvent: (tabId, e) => set(s => ({
-    tabs: s.tabs.map(t => t.id === tabId ? { ...t, streamEvents: [...t.streamEvents, e] } : t),
+    tabs: s.tabs.map(t => {
+      if (t.id !== tabId) return t
+      const events = [...t.streamEvents, e]
+      // Ring buffer: keep only the most recent 1000 events to prevent memory growth
+      return { ...t, streamEvents: events.length > 1000 ? events.slice(events.length - 1000) : events }
+    }),
   })),
 
   setWsConnected: (tabId, v) => set(s => ({
@@ -124,6 +170,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadCollections: async () => set({ collections: await window.api.getCollections() }),
 
   saveRequest: async (req) => {
+    const tab = get().tabs.find(t => t.request.id === req.id)
+    if (tab?.isScratch) return  // scratch tabs are never persisted
     await window.api.saveRequest(req)
     await get().loadCollections()
     set(s => ({ tabs: s.tabs.map(t => t.request.id === req.id ? { ...t, isDirty: false } : t) }))
@@ -136,6 +184,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   saveGlobalVars: async (vars) => {
     await window.api.saveGlobalVars(vars)
     set({ globalVariables: vars })
+  },
+
+  loadGlobalHeaders: async () => set({ globalHeaders: await window.api.getGlobalHeaders() }),
+
+  saveGlobalHeaders: async (hdrs) => {
+    await window.api.saveGlobalHeaders(hdrs)
+    set({ globalHeaders: hdrs })
   },
 
   activeEnv: () => get().environments.find(e => e.isActive),

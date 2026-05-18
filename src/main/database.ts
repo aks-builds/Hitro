@@ -8,6 +8,14 @@ export function initDatabase() {
   const dbPath = path.join(app.getPath('userData'), 'hitro.db')
   db = new Database(dbPath)
 
+  // Track which schema migrations have been applied so they never run twice
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS schema_version (
+      version   INTEGER PRIMARY KEY,
+      applied_at TEXT NOT NULL
+    );
+  `)
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS collections (
       id TEXT PRIMARY KEY,
@@ -69,18 +77,38 @@ export function initDatabase() {
     );
 
     INSERT OR IGNORE INTO global_vars (id, variables) VALUES ('global', '[]');
+
+    CREATE TABLE IF NOT EXISTS global_headers (
+      id      TEXT PRIMARY KEY DEFAULT 'global',
+      headers TEXT DEFAULT '[]'
+    );
+
+    INSERT OR IGNORE INTO global_headers (id, headers) VALUES ('global', '[]');
   `)
 
-  const migrations = [
-    `ALTER TABLE collections ADD COLUMN folders TEXT DEFAULT '[]'`,
-    `ALTER TABLE collections ADD COLUMN pre_script TEXT DEFAULT ''`,
-    `ALTER TABLE requests ADD COLUMN folder_id TEXT`,
-    `ALTER TABLE requests ADD COLUMN pre_script TEXT DEFAULT ''`,
-    `ALTER TABLE requests ADD COLUMN post_script TEXT DEFAULT ''`,
-    `ALTER TABLE requests ADD COLUMN updated_at INTEGER`,
-    `ALTER TABLE requests ADD COLUMN chain_rules TEXT DEFAULT '[]'`,
+  const appliedVersions = new Set(
+    (db.prepare('SELECT version FROM schema_version').all() as { version: number }[]).map(r => r.version)
+  )
+
+  const migrations: Array<{ version: number; sql: string }> = [
+    { version: 1, sql: `ALTER TABLE collections ADD COLUMN folders TEXT DEFAULT '[]'` },
+    { version: 2, sql: `ALTER TABLE collections ADD COLUMN pre_script TEXT DEFAULT ''` },
+    { version: 3, sql: `ALTER TABLE requests ADD COLUMN folder_id TEXT` },
+    { version: 4, sql: `ALTER TABLE requests ADD COLUMN pre_script TEXT DEFAULT ''` },
+    { version: 5, sql: `ALTER TABLE requests ADD COLUMN post_script TEXT DEFAULT ''` },
+    { version: 6, sql: `ALTER TABLE requests ADD COLUMN updated_at INTEGER` },
+    { version: 7, sql: `ALTER TABLE requests ADD COLUMN chain_rules TEXT DEFAULT '[]'` },
+    { version: 8, sql: `ALTER TABLE requests ADD COLUMN sort_order INTEGER DEFAULT 0` },
   ]
-  for (const sql of migrations) {
-    try { db.exec(sql) } catch { /* column already exists */ }
+
+  const insertVersion = db.prepare(`INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (?, ?)`)
+  for (const m of migrations) {
+    if (appliedVersions.has(m.version)) continue
+    try {
+      db.exec(m.sql)
+    } catch {
+      // Column already exists from a prior run before versioning was introduced
+    }
+    insertVersion.run(m.version, new Date().toISOString())
   }
 }

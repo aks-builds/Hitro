@@ -1,4 +1,6 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog, BrowserWindow, app, shell } from 'electron'
+import http from 'http'
+import net from 'net'
 import { db } from './database'
 import { executeRest } from './adapters/rest'
 import { executeGrpc } from './adapters/grpc'
@@ -11,7 +13,7 @@ import { executeSse } from './adapters/sse'
 import { executeSocketIo } from './adapters/socketio'
 import { runScript } from './scripts'
 import { startMockServer, stopMockServer, isRunning, runningServers } from './mockServer'
-import { toCurl, generateCode, importCurl, importOpenApi, importHar, importDotenv, exportCollection, importCollection, CodeLang } from './tools'
+import { toCurl, generateCode, importCurl, importOpenApi, importHar, importDotenv, exportCollection, importCollection, importInsomniaEnv, exportPartialCollection, exportDocsHtml, CodeLang } from './tools'
 import { StreamEvent, PikoResponse, ScriptLog, Collection, ChainRule, LoadTestConfig } from '../shared/types'
 
 function safeJsonParse<T>(json: string | null | undefined, fallback: T): T {
@@ -66,6 +68,17 @@ export function registerIpcHandlers() {
       const win = BrowserWindow.fromWebContents(event.sender)
       const { protocol, config, assertions = [], id, preScript = '', postScript = '', chainRules = [],
               _envVars = [], _globalVars = [] } = request
+
+      // Load auto-injected global headers and merge into config before execution
+      const globalHeadersRow = db.prepare('SELECT headers FROM global_headers WHERE id = ?').get('global') as any
+      const globalHeaders: { key: string; value: string; enabled: boolean }[] = safeJsonParse(globalHeadersRow?.headers, [])
+      const activeGlobalHeaders = globalHeaders.filter((h: any) => h.enabled && h.key)
+      if (activeGlobalHeaders.length > 0 && config.headers) {
+        // Merge: request-level headers take precedence over global headers
+        const existingKeys = new Set((config.headers as any[]).map((h: any) => h.key?.toLowerCase()))
+        const toInject = activeGlobalHeaders.filter((h: any) => !existingKeys.has(h.key.toLowerCase()))
+        config.headers = [...toInject, ...config.headers]
+      }
       const allLogs: ScriptLog[] = []
       let scriptVars: Record<string, string> = {}
 
@@ -114,6 +127,8 @@ export function registerIpcHandlers() {
 
       const histId = crypto.randomUUID()
       db.prepare('INSERT INTO history (id, request, response, timestamp) VALUES (?,?,?,?)').run(histId, JSON.stringify(request), JSON.stringify(response), Date.now())
+      // Keep history bounded at 500 entries; prune oldest beyond that
+      db.prepare('DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY timestamp DESC LIMIT 500)').run()
 
       return { ...response, scriptLogs: allLogs.length ? allLogs : undefined, chainExtractions }
     } catch (err: any) {
@@ -141,7 +156,7 @@ export function registerIpcHandlers() {
 
   ipcMain.handle('db-get-collections', () => {
     const cols = db.prepare('SELECT * FROM collections ORDER BY created_at DESC').all() as any[]
-    const reqs = db.prepare('SELECT * FROM requests').all() as any[]
+    const reqs = db.prepare('SELECT * FROM requests ORDER BY COALESCE(sort_order, 0) ASC, created_at ASC').all() as any[]
 
     const mapReq = (r: any) => ({
       id: r.id, name: r.name, protocol: r.protocol,
@@ -233,6 +248,13 @@ export function registerIpcHandlers() {
     return { ok: true }
   })
 
+  ipcMain.handle('db-reorder-requests', (_, { collectionId, orderedIds }: { collectionId: string; orderedIds: string[] }) => {
+    const stmt = db.prepare('UPDATE requests SET sort_order = ? WHERE id = ? AND collection_id = ?')
+    const run = db.transaction(() => orderedIds.forEach((id, idx) => stmt.run(idx, id, collectionId)))
+    run()
+    return { ok: true }
+  })
+
   ipcMain.handle('db-delete-collection', (_, id) => {
     db.prepare('DELETE FROM collections WHERE id = ?').run(id)
     db.prepare('DELETE FROM requests WHERE collection_id = ?').run(id)
@@ -278,6 +300,17 @@ export function registerIpcHandlers() {
 
   ipcMain.handle('db-save-global-vars', (_, variables) => {
     db.prepare('UPDATE global_vars SET variables = ? WHERE id = ?').run(JSON.stringify(variables), 'global')
+    return { ok: true }
+  })
+
+  // ── Global headers (auto-injected into every request) ─────────────────────
+  ipcMain.handle('db-get-global-headers', () => {
+    const row = db.prepare('SELECT headers FROM global_headers WHERE id = ?').get('global') as any
+    return safeJsonParse(row?.headers, [])
+  })
+
+  ipcMain.handle('db-save-global-headers', (_, headers) => {
+    db.prepare('UPDATE global_headers SET headers = ? WHERE id = ?').run(JSON.stringify(headers), 'global')
     return { ok: true }
   })
 
@@ -449,15 +482,107 @@ export function registerIpcHandlers() {
   ipcMain.handle('tool-import-curl',    (_, curl)          => importCurl(curl))
   ipcMain.handle('tool-import-openapi', (_, spec)          => importOpenApi(spec))
   ipcMain.handle('tool-import-har',     (_, har)           => importHar(har))
-  ipcMain.handle('tool-import-dotenv',      (_, { content, name }) => importDotenv(content, name))
-  ipcMain.handle('tool-import-collection',  (_, json)          => importCollection(json))
-  ipcMain.handle('tool-export-collection',  (_, col)           => exportCollection(col))
+  ipcMain.handle('tool-import-dotenv',         (_, { content, name }) => importDotenv(content, name))
+  ipcMain.handle('tool-import-collection',     (_, json)          => importCollection(json))
+  ipcMain.handle('tool-export-collection',     (_, col)           => exportCollection(col))
+  ipcMain.handle('tool-import-insomnia-env',   (_, json)          => importInsomniaEnv(json))
+  ipcMain.handle('tool-export-partial',        (_, { col, ids })  => exportPartialCollection(col, ids))
+  ipcMain.handle('tool-export-docs-html',      (_, col)           => exportDocsHtml(col))
+
+  // ── OAuth 2.0 PKCE browser authorization flow ────────────────────────────────
+  ipcMain.handle('oauth2:authorize', async (_, { authUrl, tokenUrl, clientId, clientSecret, scope }: {
+    authUrl: string; tokenUrl: string; clientId: string; clientSecret?: string; scope?: string
+  }) => {
+    const crypto = require('crypto') as typeof import('crypto')
+
+    const codeVerifier  = crypto.randomBytes(32).toString('base64url')
+    const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url')
+    const state         = crypto.randomBytes(8).toString('hex')
+
+    // Get a free TCP port for the local redirect listener
+    const port = await new Promise<number>((resolve, reject) => {
+      const srv = net.createServer()
+      srv.once('error', reject)
+      srv.listen(0, '127.0.0.1', () => {
+        const addr = srv.address() as net.AddressInfo
+        srv.close(() => resolve(addr.port))
+      })
+    })
+
+    const redirectUri = `http://localhost:${port}/callback`
+
+    // Open browser with PKCE authorization URL
+    const authParams = new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope: scope ?? '',
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+      state,
+    })
+    await shell.openExternal(`${authUrl}?${authParams}`)
+
+    // Start HTTP server that captures the auth code from the browser redirect
+    const code = await new Promise<string>((resolve, reject) => {
+      const server = http.createServer((req, res) => {
+        try {
+          const reqUrl = new URL(req.url ?? '/', `http://localhost:${port}`)
+          const authCode = reqUrl.searchParams.get('code')
+          const errParam = reqUrl.searchParams.get('error')
+          const html = (title: string, color: string) =>
+            `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body style="font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0D1117;color:#E6EDF3"><div style="text-align:center"><div style="font-size:48px;margin-bottom:16px">${color === '#3FB950' ? '✓' : '✗'}</div><h2 style="color:${color};margin:0 0 8px">${title}</h2><p style="color:#8B949E;margin:0">You can close this tab.</p></div></body></html>`
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+          res.end(html(authCode ? 'Authorization successful' : 'Authorization failed', authCode ? '#3FB950' : '#F85149'))
+          server.close()
+          if (authCode) setTimeout(() => resolve(authCode), 50)
+          else reject(new Error(errParam ?? 'Authorization cancelled'))
+        } catch (e: any) {
+          server.close(); reject(e)
+        }
+      })
+      server.listen(port, '127.0.0.1')
+      setTimeout(() => { server.close(); reject(new Error('OAuth timed out — no response within 5 minutes')) }, 300_000)
+    })
+
+    // Exchange authorization code for access token
+    const params = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
+    })
+    if (clientSecret) params.set('client_secret', clientSecret)
+
+    const tokenRes = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: params.toString(),
+    })
+    if (!tokenRes.ok) {
+      const body = await tokenRes.text().catch(() => '')
+      throw new Error(`Token exchange failed (${tokenRes.status}): ${body}`)
+    }
+    const tokenData: any = await tokenRes.json()
+    return {
+      ok: true,
+      accessToken: tokenData.access_token as string,
+      tokenType:   (tokenData.token_type as string) ?? 'Bearer',
+      scope:       tokenData.scope as string | undefined,
+      expiresIn:   tokenData.expires_in as number | undefined,
+    }
+  })
 
   // ── File picker ────────────────────────────────────────────────────────────
   ipcMain.handle('open-file', async (event, opts?: { filters?: Electron.FileFilter[] }) => {
-    const win = BrowserWindow.fromWebContents(event.sender)!
+    // fromWebContents can return null in some Electron builds; fall back to first window
+    const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0]
     const result = await dialog.showOpenDialog(win, {
       properties: ['openFile'],
+      // Always start in a known-good directory to prevent the Windows "Address Bar"
+      // error caused by an empty or stale last-used path in the shell dialog.
+      defaultPath: app.getPath('home'),
       filters: opts?.filters ?? [{ name: 'All Files', extensions: ['*'] }],
     })
     return result.canceled ? null : result.filePaths[0]
@@ -469,8 +594,10 @@ export function registerIpcHandlers() {
   })
 
   ipcMain.handle('save-file', async (event, { defaultPath, content }: { defaultPath: string; content: string }) => {
-    const win = BrowserWindow.fromWebContents(event.sender)!
-    const result = await dialog.showSaveDialog(win, { defaultPath })
+    const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0]
+    const result = await dialog.showSaveDialog(win, {
+      defaultPath: defaultPath || app.getPath('home'),
+    })
     if (result.canceled || !result.filePath) return { ok: false }
     const fs = require('fs') as typeof import('fs')
     fs.writeFileSync(result.filePath, content, 'utf-8')

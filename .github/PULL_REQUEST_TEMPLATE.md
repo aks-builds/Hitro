@@ -45,4 +45,4 @@ Closes #
 - [ ] No `console.log` or `debugger` statements left in
 - [ ] No Node built-ins imported in renderer files
 - [ ] `CHANGELOG.md` updated
-- [ ] `ARCHITECTURE.md` updated if IPC contract changed
+- [ ] `docs/ARCHITECTURE.md` updated if IPC contract changed

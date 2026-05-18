@@ -97,6 +97,7 @@ export async function executeRest(config: RestConfig, assertions: Assertion[]): 
       if (auth.placement === 'header') headers[auth.key] = auth.value
       else params[auth.key] = auth.value
     } else if (auth.type === 'oauth2') {
+      // PKCE flow: accessToken already stored by browser flow; fallback to client-credentials
       const token = auth.accessToken || await fetchOAuthToken(auth)
       headers['Authorization'] = `Bearer ${token}`
     } else if (auth.type === 'awssigv4') {
@@ -211,17 +212,19 @@ export async function executeRest(config: RestConfig, assertions: Assertion[]): 
         return {
           status: retryRes.status, statusText: retryRes.statusText,
           headers: retryRespHeaders, body: retryRes.data, rawBody: retryRawBody,
-          duration: retryDuration, size: retryRawBody.length, timestamp: Date.now(),
-          assertionResults: runAssertions(assertions, { status: retryRes.status, headers: retryRespHeaders, body: retryRes.data }),
+          duration: retryDuration, size: Buffer.byteLength(retryRawBody, 'utf8'), timestamp: Date.now(),
+          assertionResults: runAssertions(assertions, { status: retryRes.status, headers: retryRespHeaders, body: retryRes.data, duration: retryDuration }),
         }
       }
     }
 
+    const contentLength = responseHeaders['content-length']
+    const size = contentLength ? parseInt(contentLength, 10) : Buffer.byteLength(rawBody, 'utf8')
     return {
       status: res.status, statusText: res.statusText,
       headers: responseHeaders, body: res.data, rawBody,
-      duration, size: rawBody.length, timestamp: Date.now(),
-      assertionResults: runAssertions(assertions, { status: res.status, headers: responseHeaders, body: res.data }),
+      duration, size, timestamp: Date.now(),
+      assertionResults: runAssertions(assertions, { status: res.status, headers: responseHeaders, body: res.data, duration }),
     }
   } catch (err: any) {
     return { error: err.message, duration: Date.now() - start, timestamp: Date.now() }
