@@ -1,0 +1,93 @@
+﻿name: Bug Report
+description: Something isn't working as expected
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug. Please fill in as much detail as you can.
+
+  - type: input
+    id: version
+    attributes:
+      label: Hitro version
+      description: Found in the application title bar or Help menu
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS 14 (Sonoma)
+        - macOS 13 (Ventura)
+        - macOS 12 (Monterey)
+        - Ubuntu 24.04
+        - Ubuntu 22.04
+        - Other Linux
+    validations:
+      required: true
+
+  - type: dropdown
+    id: protocol
+    attributes:
+      label: Protocol
+      description: Which protocol were you using when the bug occurred?
+      options:
+        - REST
+        - gRPC
+        - GraphQL
+        - WebSocket
+        - Kafka
+        - AWS SQS
+        - General / UI
+        - Not applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Clear, numbered steps that reliably reproduce the issue
+      placeholder: |
+        1. Open Hitro
+        2. Create a new REST request
+        3. Set URL to ...
+        4. Click Send
+        5. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console logs (if applicable)
+      description: Open DevTools (Ctrl+Shift+I / Cmd+Option+I) → Console tab and paste any errors here
+      render: text
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, screen recordings, or any other information that might help

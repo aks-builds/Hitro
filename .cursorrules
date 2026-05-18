@@ -1,0 +1,49 @@
+﻿# Hitro — Cursor IDE rules
+
+## Project overview
+
+Hitro is an Electron desktop app (Node.js main process + React renderer) for testing REST, gRPC, GraphQL, WebSocket, Kafka, and AWS SQS APIs. All code is TypeScript.
+
+## Strict rules (never break these)
+
+1. **No Node.js built-ins in renderer files.** Files under `src/renderer/` run in a sandboxed Chromium context. Never import `fs`, `path`, `os`, `child_process`, etc. there.
+2. **IPC only.** Renderer-to-main communication must go through `window.hitroAPI` (the contextBridge in `preload.ts`). No `remote` module, no `ipcRenderer` direct calls.
+3. **`contextIsolation: true`** must remain in the `BrowserWindow` webPreferences in `src/main/index.ts`.
+4. **Adapters return, never throw.** All `executeXxx()` functions must catch errors and return `{ error: err.message, duration, timestamp }` — they must never reject.
+5. **No shared state between adapters.** Adapter files are self-contained modules.
+
+## Code conventions
+
+- TypeScript strict mode is on. Add `as any` only when unavoidable, with a comment.
+- Prefer named exports. Default exports only for React components.
+- `KeyValue[]` arrays: always filter `p.enabled && p.key` before using entries.
+- Zustand: read state with `useStore(s => s.field)`, write via actions. No direct store mutation from components.
+- IPC channel naming: `<protocol>:execute`, `db:<operation>`.
+
+## File locations
+
+- Shared types → `src/shared/types.ts`
+- New adapter → `src/main/adapters/<protocol>.ts`
+- New IPC handler → `src/main/ipc.ts` (also update `preload.ts`)
+- New protocol UI panel → `src/renderer/components/protocols/<Protocol>Config.tsx`
+- Global state → `src/renderer/store/appStore.ts`
+
+## What to avoid
+
+- Do not refactor working code unless asked.
+- Do not add comments explaining *what* code does — only *why* for non-obvious invariants.
+- Do not introduce new dependencies without flagging them in your response.
+- Do not leave `console.log` or `debugger` statements.
+- Do not open multiple SQLite connections.
+
+## Testing
+
+- Unit tests: `tests/unit/` with Vitest
+- E2E tests: `tests/e2e/` with Playwright (Electron launch)
+- Every new adapter needs at least one E2E smoke test.
+
+## Resources
+
+- `ARCHITECTURE.md` — IPC contract and process model
+- `CONTRIBUTING.md` — PR process and adapter checklist
+- `GUARDRAILS.md` — security constraints

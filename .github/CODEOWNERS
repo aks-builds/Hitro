@@ -1,0 +1,15 @@
+﻿# CODEOWNERS — GitHub automatically requests review from these teams/users.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: all files require a review from a maintainer
+*                           @duckcreek/hitro-maintainers
+
+# Protocol adapters
+src/main/adapters/          @duckcreek/hitro-maintainers
+
+# Security-sensitive Electron config
+src/main/preload.ts         @duckcreek/hitro-maintainers
+src/main/index.ts           @duckcreek/hitro-maintainers
+
+# CI / release
+.github/                    @duckcreek/hitro-maintainers

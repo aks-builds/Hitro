@@ -1,0 +1,52 @@
+﻿name: Feature Request
+description: Suggest an idea or improvement for Hitro
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement! Please describe the **problem** you're trying to solve, not just the solution.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve? What limitation are you running into?
+      placeholder: "I'm always frustrated when I have to switch to another tool to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like to see? How would it work?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: protocol
+    attributes:
+      label: Related protocol (if applicable)
+      options:
+        - REST
+        - gRPC
+        - GraphQL
+        - WebSocket
+        - Kafka
+        - AWS SQS
+        - General / UI
+        - New protocol
+        - Not applicable
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you tried any workarounds or alternative approaches?
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Mockups, links to similar features in other tools, or any other helpful context
