@@ -200,7 +200,7 @@ export default function ResponsePanel({ tab }: { tab: Tab }) {
   ]
 
   return (
-    <div className="flex flex-col h-full" style={{ background: 'var(--pk-surface)' }}>
+    <div data-testid="response-panel" className="flex flex-col h-full" style={{ background: 'var(--pk-surface)' }}>
 
       {/* ── Header: tabs + status ─────────────────────────── */}
       <div className="flex items-center flex-shrink-0" style={{ minHeight: 36, borderBottom: '1px solid var(--pk-border)' }}>

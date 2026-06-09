@@ -134,6 +134,7 @@ export default function AssertionEditor({ tab }: { tab: Tab }) {
       <div className="flex flex-col gap-2">
         {assertions.map(a => (
           <div key={a.id}
+            data-testid="assertion-row"
             className="flex items-center gap-2 p-3 rounded-xl transition-colors"
             style={{ background: 'var(--pk-panel)', border: '1px solid var(--pk-border)' }}>
             <input

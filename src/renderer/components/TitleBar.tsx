@@ -116,7 +116,7 @@ export default function TitleBar({ onOpenSettings, onOpenImport }: Props) {
             <line x1="16" y1="16" x2="26" y2="22" stroke="white" strokeOpacity="0.4" strokeWidth="1.5"/>
           </svg>
         </div>
-        <span className="text-sm font-bold tracking-tight" style={{ color: 'var(--pk-text)' }}>Hitro</span>
+        <span data-testid="app-brand" className="text-sm font-bold tracking-tight" style={{ color: 'var(--pk-text)' }}>Hitro</span>
         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
           style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--pk-accent)' }}>
           API Client

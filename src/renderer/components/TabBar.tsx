@@ -145,6 +145,7 @@ export default function TabBar() {
               {/* Dirty indicator — amber dot distinguishes unsaved state from active-tab accent */}
               {tab.isDirty && (
                 <span
+                  data-testid="dirty-indicator"
                   className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                   style={{ background: 'var(--pk-warning)' }}
                   title="Unsaved changes"

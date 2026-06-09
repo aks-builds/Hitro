@@ -9,12 +9,14 @@ test.describe('REST adapter', () => {
   test.beforeAll(async () => {
     app = await electron.launch({
       args: [appPath],
-      env: { ...process.env, NEXUS_DEV_TOOLS: '0' },
+      env: { ...process.env, HITRO_DEV_TOOLS: '0' },
     })
+    const page = await app.firstWindow()
+    await page.waitForSelector('[data-testid="send-button"]', { timeout: 30_000 })
   })
 
   test.afterAll(async () => {
-    await app.close()
+    await app?.close()
   })
 
   test.beforeEach(async () => {
@@ -46,6 +48,8 @@ test.describe('REST adapter', () => {
     const page = await app.firstWindow()
 
     await page.locator('[data-testid="rest-url"]').fill('https://httpbin.org/status/200')
+    // Navigate to the Assertions sub-tab in the request builder
+    await page.locator('button', { hasText: /^Assertions/ }).first().click()
     // Add assertion: status eq 200
     await page.locator('[data-testid="add-assertion"]').click()
     await page.locator('[data-testid="assertion-field"]').last().fill('status')
@@ -53,7 +57,10 @@ test.describe('REST adapter', () => {
     await page.locator('[data-testid="assertion-expected"]').last().fill('200')
 
     await page.locator('[data-testid="send-button"]').click()
+    // Wait for response, then inspect assertions in the response panel
+    await page.locator('[data-testid="response-status"]').waitFor({ timeout: 15_000 })
+    await page.locator('[data-testid="response-panel"] button', { hasText: /^Assertions/ }).click()
 
-    await expect(page.locator('[data-testid="assertion-result-pass"]')).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('[data-testid="assertion-result-pass"]')).toBeVisible({ timeout: 5_000 })
   })
 })

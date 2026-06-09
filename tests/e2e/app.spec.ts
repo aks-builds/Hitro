@@ -25,7 +25,7 @@ test.describe('App launch', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('product name is Hitro', async () => {
     const name = await app.evaluate(({ app: a }) => a.getName())
@@ -49,9 +49,7 @@ test.describe('App launch', () => {
   })
 
   test('sidebar brand shows Hitro', async () => {
-    // The brand span has class "gradient-text" and text "Hitro"
-    const brand = page.locator('.gradient-text', { hasText: 'Hitro' }).first()
-    await expect(brand).toBeVisible()
+    await expect(page.locator('[data-testid="app-brand"]')).toBeVisible()
   })
 
   test('protocol selector defaults to REST', async () => {
@@ -67,12 +65,12 @@ test.describe('Tab management', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('+ button creates a new tab', async () => {
-    const before = await page.locator('[data-testid="tab-bar"] > div').count()
+    const before = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     await page.locator('[data-testid="tab-bar"] button', { hasText: '+' }).click()
-    const after = await page.locator('[data-testid="tab-bar"] > div').count()
+    const after = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     expect(after).toBe(before + 1)
   })
 
@@ -83,21 +81,21 @@ test.describe('Tab management', () => {
   test('editing request name marks tab dirty', async () => {
     const nameInput = page.locator('input[placeholder="Request name"]').first()
     await nameInput.fill('My API Call')
-    await expect(page.locator('[data-testid="tab-bar"] .rounded-full.bg-pk-accent').first()).toBeVisible()
+    await expect(page.locator('[data-testid="dirty-indicator"]').first()).toBeVisible()
   })
 
   test('clicking another tab switches context', async () => {
-    const tabs = page.locator('[data-testid="tab-bar"] > div')
+    const tabs = page.locator('[data-testid="tab-bar"] [data-tab-id]')
     const firstTab = tabs.first()
     await firstTab.click()
     await expect(page.locator('[data-testid="send-button"]')).toBeVisible()
   })
 
   test('close button removes a tab', async () => {
-    const before = await page.locator('[data-testid="tab-bar"] > div').count()
+    const before = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     const closeBtn = page.locator('[data-testid="tab-bar"] button', { hasText: '×' }).last()
     await closeBtn.click()
-    const after = await page.locator('[data-testid="tab-bar"] > div').count()
+    const after = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     expect(after).toBe(before - 1)
   })
 
@@ -124,7 +122,7 @@ test.describe('Protocol panels', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   async function switchTo(proto: string) {
     await page.locator('[data-testid="protocol-select"]').selectOption(proto)
@@ -199,7 +197,7 @@ test.describe('Protocol panels', () => {
   test('gRPC panel renders', async () => {
     await switchTo('grpc')
     await expect(page.locator('[data-testid="grpc-config"]')).toBeVisible()
-    await expect(page.locator('text=Proto File')).toBeVisible()
+    await expect(page.locator('input[placeholder*="proto file"]')).toBeVisible()
   })
 
   test('GraphQL panel renders with URL bar', async () => {
@@ -228,8 +226,8 @@ test.describe('Protocol panels', () => {
     await expect(page.locator('[data-testid="sqs-config"]')).toBeVisible()
     await expect(page.locator('text=AWS Region')).toBeVisible()
     await expect(page.locator('text=Queue URL')).toBeVisible()
-    await expect(page.locator('button', { hasText: 'send' })).toBeVisible()
-    await expect(page.locator('button', { hasText: 'receive' })).toBeVisible()
+    await expect(page.locator('[data-testid="sqs-config"] button', { hasText: 'send' })).toBeVisible()
+    await expect(page.locator('[data-testid="sqs-config"] button', { hasText: 'receive' })).toBeVisible()
   })
 
   test('MQTT panel renders with broker URL, mode, QoS', async () => {
@@ -268,7 +266,7 @@ test.describe('REST live requests', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('GET request → 200 status badge', async () => {
     await page.locator('[data-testid="rest-url"]').fill('https://httpbin.org/get')
@@ -282,7 +280,7 @@ test.describe('REST live requests', () => {
   })
 
   test('response headers tab shows content-type', async () => {
-    await page.locator('button', { hasText: 'Headers' }).first().click()
+    await page.locator('[data-testid="response-panel"] button', { hasText: 'Headers' }).click()
     await expect(page.locator('td', { hasText: 'content-type' })).toBeVisible()
   })
 
@@ -329,21 +327,21 @@ test.describe('Response panel tabs', () => {
     await page.locator('[data-testid="send-button"]').click()
     await page.locator('[data-testid="response-status"]').waitFor({ timeout: 20_000 })
   })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('Body tab shows response content', async () => {
-    await page.locator('button', { hasText: 'Body' }).first().click()
+    await page.locator('[data-testid="response-panel"] button', { hasText: 'Body' }).click()
     await expect(page.locator('.whitespace-pre-wrap').first()).toBeVisible()
   })
 
   test('Headers tab shows table with header/value columns', async () => {
-    await page.locator('button', { hasText: 'Headers' }).first().click()
+    await page.locator('[data-testid="response-panel"] button', { hasText: 'Headers' }).click()
     await expect(page.locator('th', { hasText: 'Header' })).toBeVisible()
     await expect(page.locator('th', { hasText: 'Value' })).toBeVisible()
   })
 
   test('Assertions tab shows "No assertions configured" when none added', async () => {
-    await page.locator('button', { hasText: /^Assertions/ }).first().click()
+    await page.locator('[data-testid="response-panel"] button', { hasText: /^Assertions/ }).click()
     await expect(page.locator('text=No assertions configured')).toBeVisible()
   })
 
@@ -377,11 +375,11 @@ test.describe('Assertions', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('can add an assertion row', async () => {
-    await page.locator('button', { hasText: /^Assertions/ }).click()
-    await page.locator('button', { hasText: '+ Add Assertion' }).click()
+    await page.locator('button', { hasText: /^Assertions/ }).first().click()
+    await page.locator('[data-testid="add-assertion"]').click()
     await expect(page.locator('[data-testid="assertion-row"]').first()).toBeVisible()
   })
 
@@ -393,13 +391,17 @@ test.describe('Assertions', () => {
 
     await page.locator('[data-testid="rest-url"]').fill('https://httpbin.org/status/200')
     await page.locator('[data-testid="send-button"]').click()
-    await expect(page.locator('[data-testid="assertion-result-pass"]')).toBeVisible({ timeout: 20_000 })
+    await page.locator('[data-testid="response-status"]').waitFor({ timeout: 20_000 })
+    await page.locator('[data-testid="response-panel"] button', { hasText: /^Assertions/ }).click()
+    await expect(page.locator('[data-testid="assertion-result-pass"]')).toBeVisible({ timeout: 5_000 })
   })
 
   test('status eq 200 fails on 404 response', async () => {
     await page.locator('[data-testid="rest-url"]').fill('https://httpbin.org/status/404')
     await page.locator('[data-testid="send-button"]').click()
-    await expect(page.locator('[data-testid="assertion-result-fail"]')).toBeVisible({ timeout: 20_000 })
+    await page.locator('[data-testid="response-status"]').waitFor({ timeout: 20_000 })
+    await page.locator('[data-testid="response-panel"] button', { hasText: /^Assertions/ }).click()
+    await expect(page.locator('[data-testid="assertion-result-fail"]')).toBeVisible({ timeout: 5_000 })
     // "got:" line should show actual value
     await expect(page.locator('text=/got:/')).toBeVisible()
   })
@@ -411,7 +413,7 @@ test.describe('Assertions', () => {
   test('removing an assertion decrements count', async () => {
     const removeBtn = page.locator('[data-testid="assertion-row"] button', { hasText: '✕' }).first()
     await removeBtn.click()
-    await expect(page.locator('button', { hasText: /^Assertions$/ })).toBeVisible()
+    await expect(page.locator('button', { hasText: /^Assertions$/ }).first()).toBeVisible()
   })
 })
 
@@ -423,7 +425,7 @@ test.describe('Scripts tab', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('Scripts sub-tab shows pre and post editors', async () => {
     await page.locator('button', { hasText: 'Scripts' }).click()
@@ -450,7 +452,7 @@ test.describe('Load test panel', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('Load Test tab only appears for REST', async () => {
     await expect(page.locator('button', { hasText: 'Load Test' })).toBeVisible()
@@ -461,7 +463,7 @@ test.describe('Load test panel', () => {
 
   test('Load Test panel shows concurrency and duration fields', async () => {
     await page.locator('button', { hasText: 'Load Test' }).click()
-    await expect(page.locator('text=Concurrency')).toBeVisible()
+    await expect(page.locator('text=Concurrent')).toBeVisible()
     await expect(page.locator('text=Duration')).toBeVisible()
   })
 
@@ -483,7 +485,7 @@ test.describe('Sidebar', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('Collections section visible', async () => {
     await expect(page.locator('text=Collections')).toBeVisible()
@@ -494,7 +496,7 @@ test.describe('Sidebar', () => {
   })
 
   test('Import button opens modal', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await expect(page.locator('button', { hasText: 'cURL' })).toBeVisible()
     await page.keyboard.press('Escape')
   })
@@ -502,7 +504,7 @@ test.describe('Sidebar', () => {
   test('Env button shows environment list', async () => {
     const envBtn = page.locator('button', { hasText: /^Env/ })
     await envBtn.click()
-    await expect(page.locator('text=○ None')).toBeVisible()
+    await expect(page.locator('text=None').first()).toBeVisible()
     await envBtn.click() // close
   })
 
@@ -517,9 +519,9 @@ test.describe('Sidebar', () => {
   })
 
   test('New button from sidebar opens a tab', async () => {
-    const before = await page.locator('[data-testid="tab-bar"] > div').count()
+    const before = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     await page.locator('button', { hasText: '+ New' }).click()
-    const after = await page.locator('[data-testid="tab-bar"] > div').count()
+    const after = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     expect(after).toBe(before + 1)
   })
 })
@@ -532,10 +534,10 @@ test.describe('Import modal', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('modal has cURL, OpenAPI, HAR, .env modes', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await expect(page.locator('button', { hasText: 'cURL' })).toBeVisible()
     await expect(page.locator('button', { hasText: 'OpenAPI' })).toBeVisible()
     await expect(page.locator('button', { hasText: 'HAR' })).toBeVisible()
@@ -556,7 +558,7 @@ test.describe('Import modal', () => {
   })
 
   test('Escape closes modal', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await expect(page.locator('button', { hasText: 'cURL' })).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.locator('[data-testid="sidebar"]')).toBeVisible()
@@ -571,7 +573,7 @@ test.describe('Mock server panel', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('Manage → opens mock server panel', async () => {
     await page.locator('button', { hasText: 'Manage →' }).click()
@@ -608,7 +610,7 @@ test.describe('Edge cases', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('all 9 protocols are in the selector', async () => {
     const sel = page.locator('[data-testid="protocol-select"]')
@@ -630,7 +632,7 @@ test.describe('Edge cases', () => {
     // Tab 2: switch to kafka
     await page.locator('[data-testid="protocol-select"]').selectOption('kafka')
     // Go back to tab 1
-    await page.locator('[data-testid="tab-bar"] > div').first().click()
+    await page.locator('[data-testid="tab-bar"] [data-tab-id]').first().click()
     // Tab 1 should still be REST
     await expect(page.locator('[data-testid="rest-config"]')).toBeVisible()
   })
@@ -692,16 +694,16 @@ test.describe('Collection import and sidebar', () => {
   })
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('import modal shows Collection mode button', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await expect(page.locator('button', { hasText: 'Collection' })).toBeVisible()
     await page.keyboard.press('Escape')
   })
 
   test('importing a Postman collection shows it in the sidebar', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await page.locator('button', { hasText: 'Collection' }).click()
     await page.locator('textarea').fill(POSTMAN_COLLECTION)
     await page.locator('button', { hasText: 'Import' }).last().click()
@@ -715,9 +717,9 @@ test.describe('Collection import and sidebar', () => {
   })
 
   test('clicking a request from the sidebar opens it in a tab', async () => {
-    const tabsBefore = await page.locator('[data-testid="tab-bar"] > div').count()
+    const tabsBefore = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     await page.locator('text=Get Anything').click()
-    const tabsAfter = await page.locator('[data-testid="tab-bar"] > div').count()
+    const tabsAfter = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     expect(tabsAfter).toBe(tabsBefore + 1)
   })
 
@@ -726,9 +728,9 @@ test.describe('Collection import and sidebar', () => {
   })
 
   test('clicking the same request again focuses existing tab instead of creating another', async () => {
-    const tabsBefore = await page.locator('[data-testid="tab-bar"] > div').count()
+    const tabsBefore = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     await page.locator('text=Get Anything').click()
-    const tabsAfter = await page.locator('[data-testid="tab-bar"] > div').count()
+    const tabsAfter = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     expect(tabsAfter).toBe(tabsBefore)
   })
 
@@ -738,7 +740,7 @@ test.describe('Collection import and sidebar', () => {
   })
 
   test('re-importing same collection replaces it (no duplicates)', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await page.locator('button', { hasText: 'Collection' }).click()
     await page.locator('textarea').fill(POSTMAN_COLLECTION)
     await page.locator('button', { hasText: 'Import' }).last().click()
@@ -757,22 +759,22 @@ test.describe('Import validation', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('pasting JSON in cURL mode shows error and does NOT create a new tab', async () => {
-    const tabsBefore = await page.locator('[data-testid="tab-bar"] > div').count()
-    await page.locator('button', { hasText: 'Import' }).click()
+    const tabsBefore = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
+    await page.locator('[data-testid="open-import-modal"]').click()
     // default mode is cURL — no need to switch
     await page.locator('textarea').fill('{"info":{"name":"Oops"},"item":[]}')
     await page.locator('button', { hasText: 'Import' }).last().click()
     await expect(page.locator('text=/does not look like/i')).toBeVisible({ timeout: 3_000 })
-    const tabsAfter = await page.locator('[data-testid="tab-bar"] > div').count()
+    const tabsAfter = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     expect(tabsAfter).toBe(tabsBefore)
     await page.keyboard.press('Escape')
   })
 
   test('invalid JSON in Collection mode shows parse error', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await page.locator('button', { hasText: 'Collection' }).click()
     await page.locator('textarea').fill('{not valid json')
     await page.locator('button', { hasText: 'Import' }).last().click()
@@ -781,7 +783,7 @@ test.describe('Import validation', () => {
   })
 
   test('invalid JSON in OpenAPI mode shows parse error', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await page.locator('button', { hasText: 'OpenAPI' }).click()
     await page.locator('textarea').fill('{bad json')
     await page.locator('button', { hasText: 'Import' }).last().click()
@@ -790,13 +792,13 @@ test.describe('Import validation', () => {
   })
 
   test('Import button is disabled when textarea is empty', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await expect(page.locator('button', { hasText: 'Import' }).last()).toBeDisabled()
     await page.keyboard.press('Escape')
   })
 
   test('valid cURL with flag-only still imports without error', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await page.locator('textarea').fill('curl -X DELETE https://api.example.com/item/1')
     await page.locator('button', { hasText: 'Import' }).last().click()
     await expect(page.locator('[data-testid="send-button"]')).toBeVisible({ timeout: 5_000 })
@@ -839,10 +841,10 @@ test.describe('OpenAPI and HAR import', () => {
   })
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('OpenAPI import creates a collection in the sidebar', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await page.locator('button', { hasText: 'OpenAPI' }).click()
     await page.locator('textarea').fill(OPENAPI_SPEC)
     await page.locator('button', { hasText: 'Import' }).last().click()
@@ -856,7 +858,7 @@ test.describe('OpenAPI and HAR import', () => {
   })
 
   test('HAR import creates a collection in the sidebar', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await page.locator('button', { hasText: 'HAR' }).click()
     await page.locator('textarea').fill(HAR_FILE)
     await page.locator('button', { hasText: 'Import' }).last().click()
@@ -878,10 +880,10 @@ test.describe('Environment import (.env)', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('.env import creates an environment in the env selector', async () => {
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await page.locator('button', { hasText: '.env' }).click()
     await page.locator('input[placeholder*="Environment name"]').fill('E2E Test Env')
     await page.locator('textarea').fill('BASE_URL=https://api.example.com\nAPI_KEY=test-key-123\n# comment line\n')
@@ -918,17 +920,17 @@ test.describe('Save clears dirty indicator', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('editing a field shows the dirty dot on the tab', async () => {
     await page.locator('[data-testid="rest-url"]').fill('https://httpbin.org/get')
-    await expect(page.locator('[data-testid="tab-bar"] .rounded-full.bg-pk-accent').first()).toBeVisible()
+    await expect(page.locator('[data-testid="dirty-indicator"]').first()).toBeVisible()
   })
 
   test('clicking Save removes the dirty dot', async () => {
     await page.locator('button', { hasText: 'Save' }).click()
     await page.waitForTimeout(500)
-    await expect(page.locator('[data-testid="tab-bar"] .rounded-full.bg-pk-accent')).not.toBeVisible()
+    await expect(page.locator('[data-testid="dirty-indicator"]')).not.toBeVisible()
   })
 })
 
@@ -950,13 +952,13 @@ test.describe('Collection runner', () => {
   test.beforeAll(async () => {
     const r = await launch(); app = r.app; page = r.page
     // Import a small collection to run
-    await page.locator('button', { hasText: 'Import' }).click()
+    await page.locator('[data-testid="open-import-modal"]').click()
     await page.locator('button', { hasText: 'Collection' }).click()
     await page.locator('textarea').fill(RUNNABLE_COLLECTION)
     await page.locator('button', { hasText: 'Import' }).last().click()
     await page.locator('text=Runner Test Collection').waitFor({ timeout: 8_000 })
   })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('run button (▶) is visible on collection hover', async () => {
     const colRow = page.locator('[data-testid="sidebar"]').locator('div', { hasText: 'Runner Test Collection' }).first()
@@ -995,7 +997,7 @@ test.describe('Request chaining and variable resolution', () => {
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
   test.beforeAll(async () => { const r = await launch(); app = r.app; page = r.page })
-  test.afterAll(() => app.close())
+  test.afterAll(async () => { await app?.close() })
 
   test('chain tab is available for REST requests', async () => {
     await page.locator('[data-testid="rest-config"] button', { hasText: /^Chain/ }).click()
