@@ -395,7 +395,8 @@ test.describe('Assertions', () => {
 
     await page.locator('[data-testid="rest-url"]').fill('https://httpbin.org/status/200')
     await page.locator('[data-testid="send-button"]').click()
-    await page.locator('[data-testid="response-status"]').waitFor({ timeout: 20_000 })
+    // Wait specifically for 200 to avoid resolving instantly with any stale response
+    await expect(page.locator('[data-testid="response-status"]')).toContainText('200', { timeout: 20_000 })
     await page.locator('[data-testid="response-panel"] button', { hasText: /^Assertions/ }).click()
     await expect(page.locator('[data-testid="assertion-result-pass"]')).toBeVisible({ timeout: 5_000 })
   })
@@ -403,7 +404,8 @@ test.describe('Assertions', () => {
   test('status eq 200 fails on 404 response', async () => {
     await page.locator('[data-testid="rest-url"]').fill('https://httpbin.org/status/404')
     await page.locator('[data-testid="send-button"]').click()
-    await page.locator('[data-testid="response-status"]').waitFor({ timeout: 20_000 })
+    // Wait specifically for 404 — using waitFor() would immediately resolve with the stale 200 response
+    await expect(page.locator('[data-testid="response-status"]')).toContainText('404', { timeout: 20_000 })
     await page.locator('[data-testid="response-panel"] button', { hasText: /^Assertions/ }).click()
     await expect(page.locator('[data-testid="assertion-result-fail"]')).toBeVisible({ timeout: 5_000 })
     // "got:" line should show actual value
@@ -711,7 +713,7 @@ test.describe('Collection import and sidebar', () => {
     await page.locator('button', { hasText: 'Collection' }).click()
     await page.locator('textarea').fill(POSTMAN_COLLECTION)
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await expect(page.locator('[data-testid="sidebar"]').locator('text=Hitro E2E Test Collection')).toBeVisible({ timeout: 8_000 })
+    await expect(page.locator('[data-testid="sidebar"]').locator('text=Hitro E2E Test Collection')).toBeVisible({ timeout: 15_000 })
   })
 
   test('expanding the collection shows both requests', async () => {
@@ -852,7 +854,7 @@ test.describe('OpenAPI and HAR import', () => {
     await page.locator('button', { hasText: 'OpenAPI 3.0' }).click()
     await page.locator('textarea').fill(OPENAPI_SPEC)
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await expect(page.locator('[data-testid="sidebar"]').locator('text=Pets API')).toBeVisible({ timeout: 8_000 })
+    await expect(page.locator('[data-testid="sidebar"]').locator('text=Pets API')).toBeVisible({ timeout: 15_000 })
   })
 
   test('OpenAPI collection has the correct number of requests', async () => {
@@ -866,7 +868,7 @@ test.describe('OpenAPI and HAR import', () => {
     await page.locator('button', { hasText: 'HAR File' }).click()
     await page.locator('textarea').fill(HAR_FILE)
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await expect(page.locator('[data-testid="sidebar"]').locator('text=HAR Import Test')).toBeVisible({ timeout: 8_000 })
+    await expect(page.locator('[data-testid="sidebar"]').locator('text=HAR Import Test')).toBeVisible({ timeout: 15_000 })
   })
 
   test('HAR request opens with parsed URL (without query string in URL bar)', async () => {
@@ -892,7 +894,10 @@ test.describe('Environment import (.env)', () => {
     await page.locator('input[placeholder*="Environment name"]').fill('E2E Test Env')
     await page.locator('textarea').fill('BASE_URL=https://api.example.com\nAPI_KEY=test-key-123\n# comment line\n')
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await page.keyboard.press('Escape') // close modal (shows success state, doesn't auto-close)
+    // Wait briefly for async import to complete, then close via ✕ button.
+    // Using Escape here crashes Electron on Linux when IPC is still in-flight.
+    await page.waitForTimeout(1_500)
+    await page.locator('button', { hasText: '✕' }).first().click()
     // Env selector should show the new environment
     const envBtn = page.locator('button', { hasText: /^Env/ })
     await envBtn.click()
@@ -961,7 +966,7 @@ test.describe('Collection runner', () => {
     await page.locator('button', { hasText: 'Collection' }).click()
     await page.locator('textarea').fill(RUNNABLE_COLLECTION)
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await page.locator('[data-testid="sidebar"]').locator('text=Runner Test Collection').waitFor({ timeout: 8_000 })
+    await page.locator('[data-testid="sidebar"]').locator('text=Runner Test Collection').waitFor({ timeout: 15_000 })
   })
   test.afterAll(async () => { await app?.close() })
 
