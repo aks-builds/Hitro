@@ -24,6 +24,8 @@ test.describe('REST adapter', () => {
 
   test.beforeEach(async () => {
     const page = await app.firstWindow()
+    // Wait for any in-flight request to finish so send-button is enabled
+    await page.locator('[data-testid="send-button"]:not([disabled])').waitFor({ timeout: 30_000 })
     const protocolSelector = page.locator('[data-testid="protocol-select"]')
     await protocolSelector.selectOption('rest')
   })
@@ -41,7 +43,7 @@ test.describe('REST adapter', () => {
   test('shows an error for an unreachable host', async () => {
     const page = await app.firstWindow()
 
-    await page.locator('[data-testid="rest-url"]').fill('http://localhost:1')
+    await page.locator('[data-testid="rest-url"]').fill('http://this-host-does-not-exist.invalid')
     await page.locator('[data-testid="send-button"]').click()
 
     await expect(page.locator('[data-testid="response-error"]')).toBeVisible({ timeout: 10_000 })

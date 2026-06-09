@@ -303,7 +303,7 @@ test.describe('REST live requests', () => {
   })
 
   test('unreachable host shows error panel', async () => {
-    await page.locator('[data-testid="rest-url"]').fill('http://localhost:1')
+    await page.locator('[data-testid="rest-url"]').fill('http://this-host-does-not-exist.invalid')
     await page.locator('[data-testid="send-button"]').click()
     await expect(page.locator('[data-testid="response-error"]')).toBeVisible({ timeout: 15_000 })
     await expect(page.locator('[data-testid="response-error"]')).toContainText('Request Failed')
@@ -581,7 +581,7 @@ test.describe('Mock server panel', () => {
 
   test('Manage → opens mock server panel', async () => {
     await page.locator('button', { hasText: 'Manage →' }).click()
-    await expect(page.locator('text=Mock Servers')).toBeVisible()
+    await expect(page.locator('h2', { hasText: 'Mock Servers' })).toBeVisible()
   })
 
   test('+ New Server button visible', async () => {
@@ -711,11 +711,11 @@ test.describe('Collection import and sidebar', () => {
     await page.locator('button', { hasText: 'Collection' }).click()
     await page.locator('textarea').fill(POSTMAN_COLLECTION)
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await expect(page.locator('text=Hitro E2E Test Collection')).toBeVisible({ timeout: 8_000 })
+    await expect(page.locator('[data-testid="sidebar"]').locator('text=Hitro E2E Test Collection')).toBeVisible({ timeout: 8_000 })
   })
 
   test('expanding the collection shows both requests', async () => {
-    await page.locator('text=Hitro E2E Test Collection').click()
+    await page.locator('[data-testid="sidebar"]').locator('text=Hitro E2E Test Collection').click()
     await expect(page.locator('text=Get Anything')).toBeVisible()
     await expect(page.locator('text=Post Echo')).toBeVisible()
   })
@@ -749,8 +749,8 @@ test.describe('Collection import and sidebar', () => {
     await page.locator('textarea').fill(POSTMAN_COLLECTION)
     await page.locator('button', { hasText: 'Import' }).last().click()
     await page.waitForTimeout(1_000)
-    // Count occurrences of the collection name — should still be 1
-    const count = await page.locator('text=Hitro E2E Test Collection').count()
+    // Count occurrences in the sidebar — should still be 1
+    const count = await page.locator('[data-testid="sidebar"]').locator('text=Hitro E2E Test Collection').count()
     expect(count).toBe(1)
   })
 })
@@ -852,11 +852,11 @@ test.describe('OpenAPI and HAR import', () => {
     await page.locator('button', { hasText: 'OpenAPI 3.0' }).click()
     await page.locator('textarea').fill(OPENAPI_SPEC)
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await expect(page.locator('text=Pets API')).toBeVisible({ timeout: 8_000 })
+    await expect(page.locator('[data-testid="sidebar"]').locator('text=Pets API')).toBeVisible({ timeout: 8_000 })
   })
 
   test('OpenAPI collection has the correct number of requests', async () => {
-    await page.locator('text=Pets API').click()
+    await page.locator('[data-testid="sidebar"]').locator('text=Pets API').click()
     await expect(page.locator('text=List pets')).toBeVisible()
     await expect(page.locator('text=Create pet')).toBeVisible()
   })
@@ -866,11 +866,11 @@ test.describe('OpenAPI and HAR import', () => {
     await page.locator('button', { hasText: 'HAR File' }).click()
     await page.locator('textarea').fill(HAR_FILE)
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await expect(page.locator('text=HAR Import Test')).toBeVisible({ timeout: 8_000 })
+    await expect(page.locator('[data-testid="sidebar"]').locator('text=HAR Import Test')).toBeVisible({ timeout: 8_000 })
   })
 
   test('HAR request opens with parsed URL (without query string in URL bar)', async () => {
-    await page.locator('text=HAR Import Test').click()
+    await page.locator('[data-testid="sidebar"]').locator('text=HAR Import Test').click()
     await page.locator('text=GET /items').click()
     await expect(page.locator('[data-testid="rest-url"]')).toHaveValue('https://api.example.com/items')
   })
@@ -892,6 +892,7 @@ test.describe('Environment import (.env)', () => {
     await page.locator('input[placeholder*="Environment name"]').fill('E2E Test Env')
     await page.locator('textarea').fill('BASE_URL=https://api.example.com\nAPI_KEY=test-key-123\n# comment line\n')
     await page.locator('button', { hasText: 'Import' }).last().click()
+    await page.keyboard.press('Escape') // close modal (shows success state, doesn't auto-close)
     // Env selector should show the new environment
     const envBtn = page.locator('button', { hasText: /^Env/ })
     await envBtn.click()
@@ -960,7 +961,7 @@ test.describe('Collection runner', () => {
     await page.locator('button', { hasText: 'Collection' }).click()
     await page.locator('textarea').fill(RUNNABLE_COLLECTION)
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await page.locator('text=Runner Test Collection').waitFor({ timeout: 8_000 })
+    await page.locator('[data-testid="sidebar"]').locator('text=Runner Test Collection').waitFor({ timeout: 8_000 })
   })
   test.afterAll(async () => { await app?.close() })
 
