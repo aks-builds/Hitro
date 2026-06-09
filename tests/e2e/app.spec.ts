@@ -385,9 +385,9 @@ test.describe('Assertions', () => {
 
   test('status eq 200 passes on 200 response', async () => {
     const row = page.locator('[data-testid="assertion-row"]').first()
-    await row.locator('select').first().selectOption('status')
-    await row.locator('select').nth(1).selectOption('eq')
-    await row.locator('input[type="text"]').fill('200')
+    await row.locator('[data-testid="assertion-field"]').fill('status')
+    await row.locator('[data-testid="assertion-operator"]').selectOption('eq')
+    await row.locator('[data-testid="assertion-expected"]').fill('200')
 
     await page.locator('[data-testid="rest-url"]').fill('https://httpbin.org/status/200')
     await page.locator('[data-testid="send-button"]').click()
