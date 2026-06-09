@@ -1,5 +1,7 @@
 import { test, expect, _electron as electron } from '@playwright/test'
 import path from 'path'
+import { mkdtempSync } from 'fs'
+import { tmpdir } from 'os'
 
 const appPath = path.resolve(__dirname, '../../')
 
@@ -7,8 +9,9 @@ test.describe('REST adapter', () => {
   let app: Awaited<ReturnType<typeof electron.launch>>
 
   test.beforeAll(async () => {
+    const userDataDir = mkdtempSync(path.join(tmpdir(), 'hitro-test-'))
     app = await electron.launch({
-      args: [appPath],
+      args: [appPath, `--user-data-dir=${userDataDir}`],
       env: { ...process.env, HITRO_DEV_TOOLS: '0' },
     })
     const page = await app.firstWindow()

@@ -1,14 +1,18 @@
 import { test, expect, _electron as electron } from '@playwright/test'
 import path from 'path'
+import { mkdtempSync } from 'fs'
+import { tmpdir } from 'os'
 
 const appPath = path.resolve(__dirname, '../../')
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Launch helper — waits for React to fully mount (auto-tab created by App.tsx)
+// Each call gets its own temp user-data-dir so suites never share SQLite state.
 // ─────────────────────────────────────────────────────────────────────────────
 async function launch() {
+  const userDataDir = mkdtempSync(path.join(tmpdir(), 'hitro-test-'))
   const app = await electron.launch({
-    args: [appPath],
+    args: [appPath, `--user-data-dir=${userDataDir}`],
     env: { ...process.env, HITRO_DEV_TOOLS: '0' },
   })
   const page = await app.firstWindow()
