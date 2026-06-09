@@ -303,7 +303,7 @@ test.describe('REST live requests', () => {
   })
 
   test('unreachable host shows error panel', async () => {
-    await page.locator('[data-testid="rest-url"]').fill('http://localhost:19999')
+    await page.locator('[data-testid="rest-url"]').fill('http://localhost:1')
     await page.locator('[data-testid="send-button"]').click()
     await expect(page.locator('[data-testid="response-error"]')).toBeVisible({ timeout: 15_000 })
     await expect(page.locator('[data-testid="response-error"]')).toContainText('Request Failed')
@@ -467,8 +467,8 @@ test.describe('Load test panel', () => {
 
   test('Load Test panel shows concurrency and duration fields', async () => {
     await page.locator('button', { hasText: 'Load Test' }).click()
-    await expect(page.locator('text=Concurrent')).toBeVisible()
-    await expect(page.locator('text=Duration')).toBeVisible()
+    await expect(page.locator('text=Concurrent users')).toBeVisible()
+    await expect(page.locator('text=Duration (seconds)')).toBeVisible()
   })
 
   test('Run button disabled without URL', async () => {
@@ -492,7 +492,7 @@ test.describe('Sidebar', () => {
   test.afterAll(async () => { await app?.close() })
 
   test('Collections section visible', async () => {
-    await expect(page.locator('text=Collections')).toBeVisible()
+    await expect(page.locator('text=/^Collections$/i')).toBeVisible()
   })
 
   test('empty collections shows placeholder', async () => {
@@ -501,7 +501,7 @@ test.describe('Sidebar', () => {
 
   test('Import button opens modal', async () => {
     await page.locator('[data-testid="open-import-modal"]').click()
-    await expect(page.locator('button', { hasText: 'cURL' })).toBeVisible()
+    await expect(page.locator('button', { hasText: 'cURL Command' })).toBeVisible()
     await page.keyboard.press('Escape')
   })
 
@@ -513,7 +513,7 @@ test.describe('Sidebar', () => {
   })
 
   test('Global Variables button opens modal', async () => {
-    await page.locator('button', { hasText: '{}' }).click()
+    await page.locator('button[title^="Global Variables"]').click()
     await expect(page.locator('text=Global Variables')).toBeVisible()
     await page.keyboard.press('Escape')
   })
@@ -542,14 +542,14 @@ test.describe('Import modal', () => {
 
   test('modal has cURL, OpenAPI, HAR, .env modes', async () => {
     await page.locator('[data-testid="open-import-modal"]').click()
-    await expect(page.locator('button', { hasText: 'cURL' })).toBeVisible()
-    await expect(page.locator('button', { hasText: 'OpenAPI' })).toBeVisible()
-    await expect(page.locator('button', { hasText: 'HAR' })).toBeVisible()
-    await expect(page.locator('button', { hasText: '.env' })).toBeVisible()
+    await expect(page.locator('button', { hasText: 'cURL Command' })).toBeVisible()
+    await expect(page.locator('button', { hasText: 'OpenAPI 3.0' })).toBeVisible()
+    await expect(page.locator('button', { hasText: 'HAR File' })).toBeVisible()
+    await expect(page.locator('button', { hasText: '.env File' })).toBeVisible()
   })
 
   test('cURL mode shows paste area', async () => {
-    await page.locator('button', { hasText: 'cURL' }).first().click()
+    await page.locator('button', { hasText: 'cURL Command' }).click()
     await expect(page.locator('textarea[placeholder*="curl"]')).toBeVisible()
   })
 
@@ -563,7 +563,7 @@ test.describe('Import modal', () => {
 
   test('Escape closes modal', async () => {
     await page.locator('[data-testid="open-import-modal"]').click()
-    await expect(page.locator('button', { hasText: 'cURL' })).toBeVisible()
+    await expect(page.locator('button', { hasText: 'cURL Command' })).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.locator('[data-testid="sidebar"]')).toBeVisible()
   })
@@ -644,7 +644,7 @@ test.describe('Edge cases', () => {
   test('Sending shows loading indicator', async () => {
     await page.locator('[data-testid="rest-url"]').fill('https://httpbin.org/delay/2')
     await page.locator('[data-testid="send-button"]').click()
-    await expect(page.locator('text=Sending…')).toBeVisible({ timeout: 3_000 })
+    await expect(page.locator('text=Sending…').first()).toBeVisible({ timeout: 3_000 })
     await page.locator('[data-testid="response-status"]').waitFor({ timeout: 15_000 })
   })
 
@@ -788,7 +788,7 @@ test.describe('Import validation', () => {
 
   test('invalid JSON in OpenAPI mode shows parse error', async () => {
     await page.locator('[data-testid="open-import-modal"]').click()
-    await page.locator('button', { hasText: 'OpenAPI' }).click()
+    await page.locator('button', { hasText: 'OpenAPI 3.0' }).click()
     await page.locator('textarea').fill('{bad json')
     await page.locator('button', { hasText: 'Import' }).last().click()
     await expect(page.locator('text=/Invalid JSON/i')).toBeVisible({ timeout: 3_000 })
@@ -849,7 +849,7 @@ test.describe('OpenAPI and HAR import', () => {
 
   test('OpenAPI import creates a collection in the sidebar', async () => {
     await page.locator('[data-testid="open-import-modal"]').click()
-    await page.locator('button', { hasText: 'OpenAPI' }).click()
+    await page.locator('button', { hasText: 'OpenAPI 3.0' }).click()
     await page.locator('textarea').fill(OPENAPI_SPEC)
     await page.locator('button', { hasText: 'Import' }).last().click()
     await expect(page.locator('text=Pets API')).toBeVisible({ timeout: 8_000 })
@@ -863,7 +863,7 @@ test.describe('OpenAPI and HAR import', () => {
 
   test('HAR import creates a collection in the sidebar', async () => {
     await page.locator('[data-testid="open-import-modal"]').click()
-    await page.locator('button', { hasText: 'HAR' }).click()
+    await page.locator('button', { hasText: 'HAR File' }).click()
     await page.locator('textarea').fill(HAR_FILE)
     await page.locator('button', { hasText: 'Import' }).last().click()
     await expect(page.locator('text=HAR Import Test')).toBeVisible({ timeout: 8_000 })
@@ -888,7 +888,7 @@ test.describe('Environment import (.env)', () => {
 
   test('.env import creates an environment in the env selector', async () => {
     await page.locator('[data-testid="open-import-modal"]').click()
-    await page.locator('button', { hasText: '.env' }).click()
+    await page.locator('button', { hasText: '.env File' }).click()
     await page.locator('input[placeholder*="Environment name"]').fill('E2E Test Env')
     await page.locator('textarea').fill('BASE_URL=https://api.example.com\nAPI_KEY=test-key-123\n# comment line\n')
     await page.locator('button', { hasText: 'Import' }).last().click()
@@ -967,13 +967,13 @@ test.describe('Collection runner', () => {
   test('run button (▶) is visible on collection hover', async () => {
     const colRow = page.locator('[data-testid="sidebar"]').locator('div', { hasText: 'Runner Test Collection' }).first()
     await colRow.hover()
-    await expect(colRow.locator('button', { hasText: '▶' })).toBeVisible()
+    await expect(colRow.locator('button[title="Run all"]')).toBeVisible()
   })
 
   test('clicking run opens the collection runner modal', async () => {
     const colRow = page.locator('[data-testid="sidebar"]').locator('div', { hasText: 'Runner Test Collection' }).first()
     await colRow.hover()
-    await colRow.locator('button', { hasText: '▶' }).click()
+    await colRow.locator('button[title="Run all"]').click()
     await expect(page.locator('text=Collection Runner')).toBeVisible({ timeout: 3_000 })
   })
 
