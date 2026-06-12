@@ -266,6 +266,7 @@ test.describe('Protocol panels', () => {
 // Suite 4 — REST live requests (requires internet: httpbin.org)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('REST live requests', () => {
+  test.skip(!!process.env.CI, 'requires live network — run locally only')
   let app: Awaited<ReturnType<typeof electron.launch>>
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
@@ -321,6 +322,7 @@ test.describe('REST live requests', () => {
 // Suite 5 — Response panel tabs
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Response panel tabs', () => {
+  test.skip(!!process.env.CI, 'requires live network — run locally only')
   let app: Awaited<ReturnType<typeof electron.launch>>
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
@@ -375,6 +377,7 @@ test.describe('Response panel tabs', () => {
 // Suite 6 — Assertions
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Assertions', () => {
+  test.skip(!!process.env.CI, 'requires live network — run locally only')
   let app: Awaited<ReturnType<typeof electron.launch>>
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
@@ -612,6 +615,7 @@ test.describe('Mock server panel', () => {
 // Suite 12 — Edge cases & regression guards
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Edge cases', () => {
+  test.skip(!!process.env.CI, 'requires live network — run locally only')
   let app: Awaited<ReturnType<typeof electron.launch>>
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 
@@ -939,8 +943,7 @@ test.describe('Save clears dirty indicator', () => {
 
   test('clicking Save removes the dirty dot', async () => {
     await page.locator('button', { hasText: 'Save' }).click()
-    await page.waitForTimeout(500)
-    await expect(page.locator('[data-testid="dirty-indicator"]')).not.toBeVisible()
+    await expect(page.locator('[data-testid="dirty-indicator"]')).not.toBeVisible({ timeout: 5000 })
   })
 })
 
@@ -948,6 +951,7 @@ test.describe('Save clears dirty indicator', () => {
 // Suite 18 — Collection runner
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Collection runner', () => {
+  test.skip(!!process.env.CI, 'requires live network — run locally only')
   let app: Awaited<ReturnType<typeof electron.launch>>
   let page: Awaited<ReturnType<Awaited<ReturnType<typeof electron.launch>>['firstWindow']>>
 

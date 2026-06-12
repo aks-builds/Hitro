@@ -6,6 +6,7 @@ import { tmpdir } from 'os'
 const appPath = path.resolve(__dirname, '../../')
 
 test.describe('REST adapter', () => {
+  test.skip(!!process.env.CI, 'requires live network — run locally only')
   let app: Awaited<ReturnType<typeof electron.launch>>
 
   test.beforeAll(async () => {
