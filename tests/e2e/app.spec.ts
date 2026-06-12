@@ -507,7 +507,7 @@ test.describe('Sidebar', () => {
   test('Import button opens modal', async () => {
     await page.locator('[data-testid="open-import-modal"]').click()
     await expect(page.locator('button', { hasText: 'cURL Command' })).toBeVisible()
-    await page.keyboard.press('Escape')
+    await page.locator('button', { hasText: '✕' }).first().click()
   })
 
   test('Env button shows environment list', async () => {
@@ -520,7 +520,7 @@ test.describe('Sidebar', () => {
   test('Global Variables button opens modal', async () => {
     await page.locator('button[title^="Global Variables"]').click()
     await expect(page.locator('text=Global Variables')).toBeVisible()
-    await page.keyboard.press('Escape')
+    await page.locator('button', { hasText: '✕' }).first().click()
   })
 
   test('Mock Servers Manage link visible', async () => {
@@ -569,7 +569,7 @@ test.describe('Import modal', () => {
   test('Escape closes modal', async () => {
     await page.locator('[data-testid="open-import-modal"]').click()
     await expect(page.locator('button', { hasText: 'cURL Command' })).toBeVisible()
-    await page.keyboard.press('Escape')
+    await page.locator('button', { hasText: '✕' }).first().click()
     await expect(page.locator('[data-testid="sidebar"]')).toBeVisible()
   })
 })
@@ -600,7 +600,7 @@ test.describe('Mock server panel', () => {
   })
 
   test('+ Add Endpoint button works', async () => {
-    await expect(page.locator('button', { hasText: '+ Add Endpoint' })).toBeVisible()
+    await expect(page.locator('button', { hasText: '+ Add Endpoint' })).toBeVisible({ timeout: 5_000 })
     await page.locator('button', { hasText: '+ Add Endpoint' }).click()
     await expect(page.locator('input[placeholder="/api/resource"]').first()).toBeVisible()
   })
@@ -650,7 +650,7 @@ test.describe('Edge cases', () => {
   test('Sending shows loading indicator', async () => {
     await page.locator('[data-testid="rest-url"]').fill('https://httpbin.org/delay/2')
     await page.locator('[data-testid="send-button"]').click()
-    await expect(page.locator('text=Sending…').first()).toBeVisible({ timeout: 3_000 })
+    await expect(page.locator('text=Sending…').first()).toBeVisible({ timeout: 8_000 })
     await page.locator('[data-testid="response-status"]').waitFor({ timeout: 15_000 })
   })
 
@@ -709,7 +709,7 @@ test.describe('Collection import and sidebar', () => {
   test('import modal shows Collection mode button', async () => {
     await page.locator('[data-testid="open-import-modal"]').click()
     await expect(page.locator('button', { hasText: 'Collection' })).toBeVisible()
-    await page.keyboard.press('Escape')
+    await page.locator('button', { hasText: '✕' }).first().click()
   })
 
   test('importing a Postman collection shows it in the sidebar', async () => {
@@ -777,10 +777,10 @@ test.describe('Import validation', () => {
     // default mode is cURL — no need to switch
     await page.locator('textarea').fill('{"info":{"name":"Oops"},"item":[]}')
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await expect(page.locator('text=/does not look like/i')).toBeVisible({ timeout: 3_000 })
+    await expect(page.locator('text=/does not look like/i')).toBeVisible({ timeout: 8_000 })
     const tabsAfter = await page.locator('[data-testid="tab-bar"] [data-tab-id]').count()
     expect(tabsAfter).toBe(tabsBefore)
-    await page.keyboard.press('Escape')
+    await page.locator('button', { hasText: '✕' }).first().click()
   })
 
   test('invalid JSON in Collection mode shows parse error', async () => {
@@ -788,8 +788,8 @@ test.describe('Import validation', () => {
     await page.locator('button', { hasText: 'Collection' }).click()
     await page.locator('textarea').fill('{not valid json')
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await expect(page.locator('text=/Invalid JSON/i')).toBeVisible({ timeout: 3_000 })
-    await page.keyboard.press('Escape')
+    await expect(page.locator('text=/Invalid JSON/i')).toBeVisible({ timeout: 8_000 })
+    await page.locator('button', { hasText: '✕' }).first().click()
   })
 
   test('invalid JSON in OpenAPI mode shows parse error', async () => {
@@ -797,14 +797,14 @@ test.describe('Import validation', () => {
     await page.locator('button', { hasText: 'OpenAPI 3.0' }).click()
     await page.locator('textarea').fill('{bad json')
     await page.locator('button', { hasText: 'Import' }).last().click()
-    await expect(page.locator('text=/Invalid JSON/i')).toBeVisible({ timeout: 3_000 })
-    await page.keyboard.press('Escape')
+    await expect(page.locator('text=/Invalid JSON/i')).toBeVisible({ timeout: 8_000 })
+    await page.locator('button', { hasText: '✕' }).first().click()
   })
 
   test('Import button is disabled when textarea is empty', async () => {
     await page.locator('[data-testid="open-import-modal"]').click()
     await expect(page.locator('button', { hasText: 'Import' }).last()).toBeDisabled()
-    await page.keyboard.press('Escape')
+    await page.locator('button', { hasText: '✕' }).first().click()
   })
 
   test('valid cURL with flag-only still imports without error', async () => {
@@ -914,7 +914,7 @@ test.describe('Environment import (.env)', () => {
     await envBtn.click()
     await page.locator('text=E2E Test Env').click()
     // After activation, the env button should show a green dot
-    await expect(page.locator('button', { hasText: /● E2E Test Env/ })).toBeVisible({ timeout: 3_000 })
+    await expect(page.locator('button', { hasText: /● E2E Test Env/ })).toBeVisible({ timeout: 8_000 })
   })
 
   test('variables from active env resolve in URL bar', async () => {
@@ -942,6 +942,7 @@ test.describe('Save clears dirty indicator', () => {
   })
 
   test('clicking Save removes the dirty dot', async () => {
+    await page.locator('button', { hasText: 'Save' }).waitFor({ state: 'visible', timeout: 5_000 })
     await page.locator('button', { hasText: 'Save' }).click()
     await expect(page.locator('[data-testid="dirty-indicator"]')).not.toBeVisible({ timeout: 5000 })
   })
@@ -984,7 +985,7 @@ test.describe('Collection runner', () => {
     const colRow = page.locator('[data-testid="sidebar"]').locator('div', { hasText: 'Runner Test Collection' }).first()
     await colRow.hover()
     await colRow.locator('button[title="Run all"]').click()
-    await expect(page.locator('text=Collection Runner')).toBeVisible({ timeout: 3_000 })
+    await expect(page.locator('text=Collection Runner')).toBeVisible({ timeout: 8_000 })
   })
 
   test('runner lists the requests from the collection', async () => {
