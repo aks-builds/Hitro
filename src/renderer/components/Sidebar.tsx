@@ -522,7 +522,7 @@ export default function Sidebar({
       <div className="px-2.5 py-2" style={{ borderBottom: '1px solid var(--pk-border)' }}>
         <div className="flex gap-1.5">
           <button onClick={() => newTab()} className="btn-primary flex-1 py-1.5 text-[11px]">+ New</button>
-          <button onClick={() => setShowImport(true)} className="btn-ghost py-1.5 text-[11px] px-3">Import</button>
+          <button data-testid="open-import-modal" onClick={() => setShowImport(true)} className="btn-ghost py-1.5 text-[11px] px-3">Import</button>
           <button
             onClick={() => setShowGlobals(true)}
             title={`Global Variables${globalCount > 0 ? ` (${globalCount})` : ''}`}
